@@ -50,4 +50,4 @@ Thumbs.db
 media/
 
 # Static files
-staticfiles/
+staticfiles/.env
