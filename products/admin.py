@@ -3,19 +3,20 @@ from .models import Category, Product
 
 
 @admin.register(Category)
+@admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     """Admin interface for hierarchical categories"""
     
-    list_display = ['name', 'parent', 'level', 'is_active', 'sort_order']
+    list_display = ['get_display_name', 'parent', 'level', 'is_active', 'sort_order']
     list_filter = ['level', 'is_active']
     search_fields = ['name']
     prepopulated_fields = {'slug': ('name',)}
-    
 
     def get_display_name(self, obj):
         """Show full path in admin list"""
         return obj.get_display_name()
     get_display_name.short_description = 'Full Path'
+
 
     fieldsets = (
         ('Category Information', {
