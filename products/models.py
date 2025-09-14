@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -25,9 +25,10 @@ class Category(models.Model):
         related_name='children'
     )
     
-    # Type hint for Pylance - Django creates this relationship dynamically
+    # Type hint for Pylance
     if TYPE_CHECKING:
         children: 'QuerySet[Category]'
+        id: int
     
     # Denormalized field to optimize queries
     level = models.PositiveIntegerField(default=0)
@@ -68,12 +69,12 @@ class Category(models.Model):
     
     def get_descendants(self):
         """Get all subcategories recursively with circular reference protection"""
-        descendants = []
-        visited = set()
+        descendants: List['Category'] = []
+        visited: set[int] = set()
         self._collect_descendants(descendants, visited)
         return descendants
     
-    def _collect_descendants(self, descendants, visited):
+    def _collect_descendants(self, descendants: List['Category'], visited: set[int]) -> None:
         """Recursively collect descendants with cycle detection"""
         if self.id in visited:
             return
@@ -114,14 +115,14 @@ class Product(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     
-    # Stock Keeping Unit - unique identifier for inventory
+    # Stock Keeping Unit as unique identifier for inventory
     sku = models.CharField(
         max_length=50, 
         unique=True,
         help_text="Unique product identifier for inventory tracking"
     )
     
-    # Use DecimalField for money - never FloatField for currency
+    # Use DecimalField for money
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
