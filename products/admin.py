@@ -3,7 +3,6 @@ from .models import Category, Product
 
 
 @admin.register(Category)
-@admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     """Admin interface for hierarchical categories"""
     
