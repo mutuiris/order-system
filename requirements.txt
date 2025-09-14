@@ -2,6 +2,7 @@ asgiref==3.9.1
 certifi==2025.8.3
 charset-normalizer==3.4.3
 Django==5.2.6
+django-filter==25.1
 django-stubs==5.2.5
 django-stubs-ext==5.2.5
 djangorestframework==3.16.1
