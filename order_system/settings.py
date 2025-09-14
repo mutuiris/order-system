@@ -7,6 +7,7 @@ Modified to follow DRY and KISS principles with production-ready defaults.
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from typing import TYPE_CHECKING
 
 # Load environment variables from .env file
 load_dotenv()
@@ -50,6 +51,9 @@ LOCAL_APPS = [
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
+if TYPE_CHECKING:
+    INSTALLED_APPS += ['django_stubs_ext']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
