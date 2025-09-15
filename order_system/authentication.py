@@ -73,7 +73,8 @@ class JWTAuthentication(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed(msg)
         
         return (user, token)
-    
+
+    @staticmethod
     def generate_jwt_token(user):
         """
         Generate JWT token for authenticated user
@@ -88,6 +89,7 @@ class JWTAuthentication(authentication.BaseAuthentication):
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
         return token
 
+    @staticmethod
     def get_user_from_token(token):
         """
         Extract user information from JWT token for token validation
