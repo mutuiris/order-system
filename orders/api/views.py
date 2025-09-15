@@ -129,25 +129,35 @@ class OrderViewSet(viewsets.ModelViewSet):
         """
         queryset = self.get_queryset()
 
-        
-        # Calculate summary statistics
+        from decimal import Decimal
+    
+        # Initialize with all expected types
         summary = {
             'total_orders': queryset.count(),
             'pending_orders': queryset.filter(status=Order.PENDING).count(),
             'completed_orders': queryset.filter(status=Order.DELIVERED).count(),
             'cancelled_orders': queryset.filter(status=Order.CANCELLED).count(),
+            'total_spent': Decimal('0.00'),
+            'recent_orders': []
         }
-        
-        # Add total amount spent
-        total_spent = sum(order.total_amount for order in queryset if order.status != Order.CANCELLED)
+
+        # Calculate total spent
+        total_spent = Decimal('0.00')
+        for order in queryset:
+            if order.status != Order.CANCELLED:
+                total_spent += order.total_amount
         summary['total_spent'] = total_spent
-        
-        # Recent orders
+
+        # Add recent orders
         recent_orders = queryset[:5]
-        summary['recent_orders'] = OrderListSerializer(recent_orders, many=True).data
-        
+        summary['recent_orders'] = OrderListSerializer(
+            recent_orders, 
+            many=True, 
+            context={'request': request}
+        ).data
+
         return Response(summary)
-    
+
     @action(detail=True, methods=['get'])
     def track(self, request, pk=None):
         """
