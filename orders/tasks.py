@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.db.models import Sum
 
 from .models import Order
 
@@ -31,7 +32,7 @@ def send_order_sms(self, order_id):
             f"Order confirmed! #{order.order_number}\n"
             f"Total: KES {order.total_amount:.2f}\n"
             f"Items: {order.items.count()}\n"
-            f"Thank you for shopping with us"
+            f"Thank you for shopping with us!"
         )
 
         # Send SMS
@@ -41,7 +42,8 @@ def send_order_sms(self, order_id):
             # Mark SMS as sent in order
             Order.objects.filter(id=order_id).update(sms_sent=True)
 
-            logger.info(f"SMS sent for order {order.order_number} to {order.customer.phone_number}")
+            logger.info(
+                f"SMS sent for order {order.order_number} to {order.customer.phone_number}")
             return {
                 'success': True,
                 'order_number': order.order_number,
@@ -49,8 +51,8 @@ def send_order_sms(self, order_id):
                 'message': 'SMS sent successfully'
             }
         else:
-            logger.error(f"SMS failed for order {order.order_number}: {result.get('error')}")
-
+            logger.error(
+                f"SMS failed for order {order.order_number}: {result.get('error')}")
             # Retry sending SMS
             raise Exception(f"SMS sending failed: {result.get('error')}")
 
@@ -61,14 +63,15 @@ def send_order_sms(self, order_id):
     except Exception as e:
         logger.error(f"SMS task failed for order {order_id}: {str(e)}")
 
-        # Retry with backoff
         if self.request.retries < self.max_retries:
             delay = 60 * (2 ** self.request.retries)  # Exponential backoff
-            logger.info(f"Retrying SMS task in {delay} seconds (attempt {self.request.retries + 1})")
+            logger.info(
+                f"Retrying SMS task in {delay} seconds (attempt {self.request.retries + 1})")
             raise self.retry(countdown=delay, exc=e)
-        
+
         logger.error(f"SMS task failed permanently for order {order_id}")
         return {'success': False, 'error': str(e)}
+
 
 @shared_task(bind=True, max_retries=3)
 def send_admin_email(self, order_id):
@@ -76,11 +79,10 @@ def send_admin_email(self, order_id):
     Send email notification to admin when order is placed
     """
     try:
-        # Get order with related data
         order = Order.objects.select_related(
-            'customer_user'
+            'customer__user'
         ).prefetch_related(
-            'items__product__ategory'
+            'items__product__category'
         ).get(id=order_id)
 
         # Prepare email content
@@ -96,15 +98,23 @@ def send_admin_email(self, order_id):
 
         # Render email body from template
         try:
-            html_message = render_to_string('emails/admin_order_notification.html', context)
-            plain_message = render_to_string('emails/admin_order_notification.txt', context)
-        except Exception:
+            html_message = render_to_string(
+                'emails/admin_order_notification.html', context)
+            plain_message = render_to_string(
+                'emails/admin_order_notification.txt', context)
+        except Exception as template_error:
+            logger.warning(
+                f"Template rendering failed: {template_error}. Using fallback message.")
+
+            # Fallback plain text message
             plain_message = f"""
+New Order Notification
 
 Customer: {order.customer.full_name} ({order.customer.email})
 Phone: {order.customer.phone_number}
 
 Order Details:
+- Order Number: {order.order_number}
 - Total Amount: KES {order.total_amount}
 - Items: {order.item_count}
 - Status: {order.status}
@@ -137,7 +147,7 @@ Items Ordered:
         email_sent = send_mail(
             subject=subject,
             message=plain_message,
-            from_email=settings.EMAIL_HOST_USER,
+            from_email=settings.EMAIL_HOST_USER or 'noreply@ordersystem.com',
             recipient_list=recipient_list,
             html_message=html_message,
             fail_silently=False
@@ -147,7 +157,8 @@ Items Ordered:
             # Mark email as sent in order
             Order.objects.filter(id=order_id).update(email_sent=True)
 
-            logger.info(f"Admin email sent successfully for order {order.order_number}")
+            logger.info(
+                f"Admin email sent successfully for order {order.order_number}")
             return {
                 'success': True,
                 'order_number': order.order_number,
@@ -167,28 +178,31 @@ Items Ordered:
         # Retry with exponential backoff
         if self.request.retries < self.max_retries:
             delay = 60 * (2 ** self.request.retries)
-            logger.info(f"Retrying email task in {delay} secons (attempt {self.request.retries + 1})")
+            logger.info(
+                f"Retrying email task in {delay} seconds (attempt {self.request.retries + 1})")
             raise self.retry(countdown=delay, exc=e)
 
         # Final failure
-        logger.error(f"Admin email task failed permanently for order {order_id}")
+        logger.error(
+            f"Admin email task failed permanently for order {order_id}")
         return {'success': False, 'error': str(e)}
+
 
 @shared_task
 def send_order_notifications(order_id):
     """
-    Arrange all notifications for a new order
-    Triggers both SMS and email notifications parallel
+    Orchestrate all notifications for a new order
+    Triggers both SMS and email notifications in parallel
     """
     logger.info(f"Starting notification tasks for order {order_id}")
 
     try:
-        # Verify order exists before starting tasks
         order = Order.objects.get(id=order_id)
-        
-        # Trigger SMS and email tasks in parallel
-        sms_task = send_order_sms.delay(order_id)
-        email_task = send_admin_email.delay(order_id)
+
+        from . import tasks
+
+        sms_task = tasks.send_order_sms.delay(order_id)
+        email_task = tasks.send_admin_email.delay(order_id)
 
         return {
             'order_id': order_id,
@@ -197,7 +211,7 @@ def send_order_notifications(order_id):
             'email_task_id': email_task.id,
             'message': 'Notification tasks started successfully',
         }
-        
+
     except Order.DoesNotExist:
         logger.error(f"Order {order_id} not found for notifications")
         return {
@@ -206,9 +220,44 @@ def send_order_notifications(order_id):
             'message': 'Notification tasks failed to start'
         }
     except Exception as e:
-        logger.error(f"Failed to start notification tasks for order {order_id}: {str(e)}")
+        logger.error(
+            f"Failed to start notification tasks for order {order_id}: {str(e)}")
         return {
             'order_id': order_id,
             'error': str(e),
             'message': 'Notification tasks failed to start'
         }
+
+
+@shared_task
+def process_order_confirmation(order_id):
+    """
+    Process order confirmation and trigger all related tasks
+    Main entry point for order processing workflow
+    """
+    try:
+        order = Order.objects.get(id=order_id)
+
+        # Update order status to confirmed
+        order.status = Order.CONFIRMED
+        order.save(update_fields=['status', 'updated_at'])
+
+        # Trigger notification tasks
+        notification_result = send_order_notifications.delay(order_id)
+
+        logger.info(
+            f"Order {order.order_number} confirmed and notifications triggered")
+
+        return {
+            'order_id': order_id,
+            'order_number': order.order_number,
+            'status': 'confirmed',
+            'notification_task_id': notification_result.id
+        }
+
+    except Order.DoesNotExist:
+        logger.error(f"Order {order_id} not found for confirmation")
+        return {'error': 'Order not found'}
+    except Exception as e:
+        logger.error(f"Order confirmation failed for {order_id}: {str(e)}")
+        return {'error': str(e)}
