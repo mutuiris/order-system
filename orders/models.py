@@ -220,18 +220,19 @@ class OrderItem(models.Model):
     
     def save(self, *args, **kwargs):
         """Auto-populate snapshot fields and calculate line total"""
-        if not self.product_name:
+        if not self.product_name and self.product:
             self.product_name = self.product.name
             self.product_sku = self.product.sku
             self.unit_price = self.product.price
         
         # Calculate line total
-        self.line_total = self.quantity * self.unit_price
+        self.line_total = Decimal(str(self.quantity)) * self.unit_price
         
         super().save(*args, **kwargs)
         
         # Update order totals after saving line item
-        self.order.calculate_totals()
+        if kwargs.get('update_totals', True):
+            self.order.calculate_totals()
     
     def delete(self, *args, **kwargs):
         """Update order totals after deleting line item"""
