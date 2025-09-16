@@ -31,6 +31,7 @@ DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = os.environ.get(
     'ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
+
 def get_allowed_hosts():
     """Get allowed hosts with ngrok support for development"""
     hosts = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -237,15 +238,19 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
 # Email Configuration
-EMAIL_BACKEND = os.environ.get(
-    'EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend'
-)
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+if DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+# Gmail SMTP Configuration
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 
-# Admin notification settings
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '')
+# Admin email settings
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'addyyangs@gmail.com')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER or 'noreply@order-system.com'
+SERVER_EMAIL = EMAIL_HOST_USER or 'noreply@order-system.com'
