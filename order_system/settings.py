@@ -43,6 +43,8 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'rest_framework',
+    'django_filters',
+    'social_django',
 ]
 
 LOCAL_APPS = [
@@ -59,12 +61,56 @@ if TYPE_CHECKING:
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'social_django.middleware.SocialAuthExceptionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Social Auth Configuration
+AUTHENTICATION_BACKENDS = [
+    'social_core.backends.google.GoogleOAuth2',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# OIDC Google Configuration
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.environ.get('GOOGLE_OAUTH2_KEY', '')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.environ.get('GOOGLE_OAUTH2_SECRET', '')
+
+# OIDC Scopes
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
+    'openid',
+    'email',
+    'profile',
+]
+
+# User creation settings
+SOCIAL_AUTH_CREATE_USERS = True
+SOCIAL_AUTH_UPDATE_USER_DATA = True
+
+# Pipeline for user creation
+SOCIAL_AUTH_PIPELINE = [
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'social_core.pipeline.social_auth.social_user',
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.user.create_user',
+    'social_core.pipeline.social_auth.associate_user',
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+    'order_system.auth_pipeline.create_customer_profile',
+]
+
+# JWT Configuration for API authentication
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
+
+## URLs
+SOCIAL_AUTH_LOGIN_URL = '/auth/login/google'
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/api/v1/auth/success'
+SOCIAL_AUTH_LOGOUT_REDIRECT_URL = '/api/v1/auth/logout'
 
 ROOT_URLCONF = 'order_system.urls'
 
@@ -153,5 +199,6 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
+        'order_system.authentication.JWTAuthentication',
     ],
 }
