@@ -52,19 +52,30 @@ class Category(models.Model):
 
     def save(self, *args, **kwargs):
         """Auto-calculate level based on parent hierarchy"""
+        old_level = self.level
         if self.parent:
             self.level = self.parent.level + 1
         else:
             self.level = 0
         super().save(*args, **kwargs)
 
+
+        if old_level != self.level:
+            level_diff = self.level - old_level
+            self.children.update(level=models.F('level') + level_diff)
+
+
     def get_full_path(self):
         """Get complete path from root to this category"""
         path = []
         current = self
-        while current:
+        visited = set()
+        while current and current.id not in visited:
+            visited.add(current.id)
             path.append(current.name)
             current = current.parent
+        if current and current.id in visited:
+            path.append(f"[CIRCULAR: {current.name}]")
         return ' > '.join(reversed(path))
 
     def get_descendants(self):
