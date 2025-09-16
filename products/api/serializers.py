@@ -14,7 +14,7 @@ class CategorySerializer(serializers.ModelSerializer):
     full_path = serializers.SerializerMethodField()
     product_count = serializers.SerializerMethodField()
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         model = Category
         fields = [
             'id', 'name', 'slug', 'parent', 'parent_name',
@@ -25,13 +25,14 @@ class CategorySerializer(serializers.ModelSerializer):
 
     def get_children(self, obj):
         """Get immediate children categories"""
-        children = obj.children.filter(is_active=True).order_by('sort_order', 'name')
+        children = obj.children.filter(
+            is_active=True).order_by('sort_order', 'name')
         return CategorySerializer(children, many=True, context=self.context).data
 
     def get_parent_name(self, obj):
         """Get parent category name for display"""
         return obj.parent.name if obj.parent else None
-    
+
     def get_full_path(self, obj):
         """Get full category path"""
         return obj.get_display_name()
@@ -39,6 +40,7 @@ class CategorySerializer(serializers.ModelSerializer):
     def get_product_count(self, obj):
         """Get number of active products in the category"""
         return obj.products.filter(is_active=True).count()
+
 
 class CategoryTreeSerializer(serializers.ModelSerializer):
     """
@@ -48,32 +50,35 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
 
     children = serializers.SerializerMethodField()
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         model = Category
         fields = ['id', 'name', 'slug', 'level', 'children']
 
     def get_children(self, obj):
         """Recursively get all children"""
-        children = obj.children.filter(is_active=True).order_by('sort_order', 'name')
+        children = obj.children.filter(
+            is_active=True).order_by('sort_order', 'name')
         return CategoryTreeSerializer(children, many=True).data
+
 
 class ProductListSerializer(serializers.ModelSerializer):
     """
     Serializer for product list view
     """
 
-    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_name = serializers.CharField(
+        source='category.name', read_only=True)
     category_path = serializers.SerializerMethodField()
     is_available = serializers.SerializerMethodField()
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         model = Product
         fields = [
             'id', 'name', 'sku', 'price', 'category_name',
             'category_path', 'stock_quantity', 'is_active',
             'is_available', 'created_at'
         ]
-    
+
     def get_category_path(self, obj):
         """Get full category path for product"""
         return obj.category.get_display_name()
@@ -81,6 +86,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     def get_is_available(self, obj):
         """Check if product is available for purchase"""
         return obj.is_in_stock
+
 
 class ProductDetailSerializer(serializers.ModelSerializer):
     """
@@ -92,7 +98,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     is_available = serializers.SerializerMethodField()
     related_products = serializers.SerializerMethodField()
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         model = Product
         fields = [
             'id', 'name', 'description', 'sku', 'price',
@@ -113,6 +119,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
         return ProductListSerializer(related, many=True).data
 
+
 class CategoryAveragePriceSerializer(serializers.Serializer):
     """
     Serializer for category average price endpoint
@@ -127,13 +134,13 @@ class CategoryAveragePriceSerializer(serializers.Serializer):
     def to_representation(self, instance):
         """Custom representation for calculated data"""
         return {
-        'category_id': instance['category_id'],
-        'category_name': instance['category_name'],
-        'average_price': str(instance['average_price']),
-        'product_count': instance['product_count'],
-        'includes_subcategories': instance['includes_subcategories'],
-        'price_range': {
-            'min_price': str(instance['min_price']),
-            'max_price': str(instance['max_price']),
+            'category_id': instance['category_id'],
+            'category_name': instance['category_name'],
+            'average_price': str(instance['average_price']),
+            'product_count': instance['product_count'],
+            'includes_subcategories': instance['includes_subcategories'],
+            'price_range': {
+                'min_price': str(instance['min_price']),
+                'max_price': str(instance['max_price']),
+            }
         }
-    }
