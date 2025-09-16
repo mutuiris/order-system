@@ -8,7 +8,7 @@ class UserSerializer(serializers.ModelSerializer):
     Serializer for User model information
     """
 
-    class Mets:
+    class Meta: # type: ignore
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'date_joined']
         read_only_fields = ['id', 'username', 'date_joined']
