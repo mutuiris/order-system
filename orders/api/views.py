@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
+from django.db import transaction
 
 
 from ..models import Order, OrderItem
@@ -102,30 +103,64 @@ class OrderViewSet(viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         """
         Cancel an order if it is in a cancellable state
+        Uses database transactions to ensure data consistency
         """
-        order = self.get_object()
+        try:
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(pk=pk)
 
-        if not order.can_be_cancelled:
+                # Verify user owns this order
+                customer_profile = getattr(
+                    self.request.user, 'customer_profile', None)
+                if not customer_profile or order.customer != customer_profile:
+                    return Response(
+                        {'error': 'Order not found or access denied'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+                # Check if order can be cancelled
+                if not order.can_be_cancelled:
+                    return Response(
+                        {'error': f'Cannot cancel order in {order.status} status'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                order_items = order.items.select_related(
+                    'product').select_for_update(of=('product',))
+
+                for item in order_items:
+                    product = item.product
+                    product.stock_quantity += item.quantity
+                    product.save(update_fields=['stock_quantity'])
+
+                # Update order status
+                order.status = Order.CANCELLED
+                order.save(update_fields=['status', 'updated_at'])
+
+                # Serialize the updated order
+                serializer = OrderDetailSerializer(
+                    order, context={'request': request})
+
+                return Response({
+                    'message': 'Order cancelled successfully',
+                    'order': serializer.data
+                })
+
+        except Order.DoesNotExist:
             return Response(
-                {'error': f'Cannot cancel order in {order.status} status'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': 'Order not found'},
+                status=status.HTTP_404_NOT_FOUND
             )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(
+                f'Order cancellation failed for order {pk}: {str(e)}', exc_info=True)
 
-        # Restore stock for all items
-        for item in order.items.all():
-            product = item.product
-            product.stock_quantity += item.quantity
-            product.save()
-
-        # Update order status
-        order.status = Order.CANCELLED
-        order.save()
-
-        serializer = OrderDetailSerializer(order, context={'request': request})
-        return Response({
-            'message': 'Order cancelled successfully',
-            'order': serializer.data
-        })
+            return Response(
+                {'error': 'Order cancellation failed. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=False, methods=['get'])
     def summary(self, request):
