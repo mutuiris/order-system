@@ -105,3 +105,8 @@ class JWTAuthentication(authentication.BaseAuthentication):
             }
         except (jwt.ExpiredSignatureError, jwt.DecodeError, jwt.InvalidTokenError):
             return None
+
+
+def generate_jwt_token(user):
+    """Generate JWT token for authenticated user"""
+    return JWTAuthentication.generate_jwt_token(user)
