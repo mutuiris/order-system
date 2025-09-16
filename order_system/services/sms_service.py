@@ -76,7 +76,31 @@ class SMSService:
             )
 
             logger.info(f"SMS sent to {formatted_number}")
-            return {'success': True, 'response': response}
+            logger.debug(f"SMS response: {response}")
+
+            # Extract message IDs for tracking
+            recipients_data = response.get(
+                'SMSMessageData', {}).get('Recipients', [])
+            message_ids = []
+
+            for recipient in recipients_data:
+                if recipient.get('status') == 'Success':
+                    message_ids.append({
+                        'phone': recipient.get('number'),
+                        'message_id': recipient.get('messageId'),
+                        'status': recipient.get('status'),
+                        'cost': recipient.get('cost')
+                    })
+
+            return {
+                'success': True,
+                'message': f'SMS sent to 1 recipients',
+                'sent_to': [formatted_number],
+                'invalid_numbers': [],
+                'response': response,
+                'results': recipients_data,
+                'message_ids': message_ids
+            }
 
         except Exception as e:
             logger.error(f"SMS sending failed: {str(e)}")
