@@ -151,12 +151,14 @@ def auth_callback(request, backend):
             defaults={'phone_number': '+254700000000'}
         )
 
+        customer_serializer = CustomerSerializer(customer)
+
         # Generate structured token response
         token_data = {
             'access_token': generate_jwt_token(user),
             'token_type': 'Bearer',
             'expires_in': 86400,
-            'user': customer
+            'user': customer_serializer.data
         }
 
         token_serializer = AuthTokenSerializer(token_data)
@@ -193,11 +195,12 @@ def auth_success(request):
             # Generate JWT token
             token = generate_jwt_token(request.user)
 
+            customer_serializer = CustomerSerializer(customer)
             token_data = {
                 'access_token': token,
                 'token_type': 'Bearer',
                 'expires_in': 86400,
-                'user': customer
+                'user': customer_serializer.data
             }
 
             serializer = AuthTokenSerializer(token_data)
