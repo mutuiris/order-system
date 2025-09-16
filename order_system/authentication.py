@@ -25,9 +25,10 @@ class JWTAuthentication(authentication.BaseAuthentication):
 
         if not auth_header or auth_header[0].lower() != b'bearer':
             return None
-        
+
         if len(auth_header) == 1:
-            msg = _('Invalid token header. Token string should not contain invalid characters')
+            msg = _(
+                'Invalid token header. Token string should not contain invalid characters')
             raise exceptions.AuthenticationFailed(msg)
 
         if len(auth_header) > 2:
@@ -37,7 +38,8 @@ class JWTAuthentication(authentication.BaseAuthentication):
         try:
             token = auth_header[1].decode('utf-8')
         except UnicodeError:
-            msg = _('Invalid token header. Token string should not contain invalid characters.')
+            msg = _(
+                'Invalid token header. Token string should not contain invalid characters.')
             raise exceptions.AuthenticationFailed(msg)
 
         return self._authenticate_credentials(token)
@@ -61,17 +63,17 @@ class JWTAuthentication(authentication.BaseAuthentication):
         except jwt.InvalidTokenError:
             msg = _('Invalid token')
             raise exceptions.AuthenticationFailed(msg)
-        
+
         try:
             user = User.objects.get(id=payload['user_id'])
         except User.DoesNotExist:
             msg = _('No user matching this token was found')
             raise exceptions.AuthenticationFailed(msg)
-        
+
         if not user.is_active:
             msg = _('This user has been deactivated')
             raise exceptions.AuthenticationFailed(msg)
-        
+
         return (user, token)
 
     @staticmethod
@@ -96,7 +98,8 @@ class JWTAuthentication(authentication.BaseAuthentication):
         and user information extraction
         """
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=['HS256'])
             return {
                 'user_id': payload.get('user_id'),
                 'email': payload.get('email'),
