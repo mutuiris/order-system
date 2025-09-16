@@ -21,15 +21,21 @@ def create_customer_profile(strategy, details, user=None, *args, **kwargs):
             phone_number = details.get('phone_number', '+254700000000')
 
             # Create customer profile
-            customer = Customer.objects.create(
+            customer, created = Customer.objects.get_or_create(
                 user=user,
-                phone_number=phone_number
+                defaults={'phone_number': phone_number}
             )
+            if created:
+                logger.info(f"Created customer profile for user {user.email}")
+            else:
+                logger.debug(
+                    f"Customer profile already exists for user {user.email}")
 
             logger.info(f"Created customer profile for user {user.email}")
 
         except Exception as e:
-            logger.error(f"Failed to create customer profile for {user.email}: {str(e)}")
+            logger.error(
+                f"Failed to create customer profile for {user.email}: {str(e)}")
             pass
 
     return {'user': user}
