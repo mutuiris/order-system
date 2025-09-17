@@ -6,7 +6,8 @@ Handles SMS and email notifications when orders are placed
 import logging
 from celery import shared_task
 from django.conf import settings
-from django.core.mail import send_mail
+# from django.core.mail import send_mail
+from django.core import mail
 from typing import TYPE_CHECKING, Dict, Any
 
 
@@ -28,6 +29,7 @@ def send_order_sms(self, order_id: int) -> Dict[str, Any]:
         message = (
             f"Order confirmed! #{order.order_number}\n"
             f"Total: KES {order.total_amount}\n"
+            f"Items: {order.item_count}\n"
             f"Thank you for shopping with us!"
         )
 
@@ -69,11 +71,13 @@ def send_admin_email(self, order_id):
     """Send email notification to admin when order is placed."""
     try:
         from .models import Order
-        
-        order = Order.objects.select_related('customer__user').prefetch_related('items').get(id=order_id)
-        
+
+        order = Order.objects.select_related(
+            'customer__user'
+        ).prefetch_related('items').get(id=order_id)
+
         subject = f"New Order: #{order.order_number} - KES {order.total_amount}"
-        
+
         message = f"""
 New Order Received
 
@@ -87,12 +91,13 @@ Items: {order.item_count}
 Address: {order.delivery_address or 'Not provided'}
 Notes: {order.delivery_notes or 'None'}
 """
-        
-        email_sent = send_mail(
+
+        email_sent = mail.send_mail(
             subject=subject,
             message=message,
             from_email=settings.EMAIL_HOST_USER or 'noreply@order-system.com',
-            recipient_list=[getattr(settings, 'ADMIN_EMAIL', 'admin@order-system.com')],
+            recipient_list=[
+                getattr(settings, 'ADMIN_EMAIL', 'admin@order-system.com')],
             fail_silently=False
         )
 
@@ -103,14 +108,13 @@ Notes: {order.delivery_notes or 'None'}
         else:
             raise Exception("Email sending returned False")
 
+    except Order.DoesNotExist:
+        logger.error(f"Order {order_id} not found for admin email")
+        return {'success': False, 'error': 'Order not found'}
+
     except Exception as e:
         logger.error(f"Email task failed for order {order_id}: {str(e)}")
-        
-        if self.request.retries < self.max_retries:
-            delay = 60 * (2 ** self.request.retries)
-            raise self.retry(countdown=delay, exc=e)
-        
-        return {'success': False, 'error': str(e)}
+        raise
 
 
 @shared_task
