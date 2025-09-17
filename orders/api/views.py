@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django.db import transaction
-
+from django.db.models import Sum
 
 from ..models import Order, OrderItem
 from .serializers import (
@@ -19,7 +19,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     Provides full CRUD operations with proper authorization
     """
 
-    permission_classes = [permissions.IsAuthenticated]  # TODO: Add OIDC
+    permission_classes = [permissions.IsAuthenticated]
 
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['status']
@@ -181,10 +181,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             'recent_orders': []
         }
 
-        # Calculate total spent
-        from django.db.models import Sum
-        total_spent = queryset.exclude(
-            status=Order.CANCELLED
+        # Only count delivered orders as spent
+        total_spent = queryset.filter(
+            status=Order.DELIVERED
         ).aggregate(
             total=Sum('total_amount')
         )['total'] or Decimal('0.00')
