@@ -226,12 +226,12 @@ def product_factory():
         import uuid
         defaults = {
             'name': f'Product {uuid.uuid4().hex[:8]}',
-            'sku': f'SKU-{uuid.uuid4().hex[:8].upper}',
+            'sku': f'SKU-{uuid.uuid4().hex[:8].upper()}',
             'price': 99.99,
             'stock_quantity': 10,
             'description': 'A test product description',
         }
         defaults.update(kwargs)
 
-        return Product.objects.create(Category=category, **defaults)
+        return Product.objects.create(category=category, **defaults)
     return create_product
