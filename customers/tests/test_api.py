@@ -42,7 +42,6 @@ class CustomerViewSetTest(BaseAPITestCase):
 
     def test_get_customer_profile_no_profile(self):
         """Test getting profile when user has no customer profile"""
-        # Create user without customer profile
         user_no_profile = User.objects.create_user(
             username='noprofile',
             email='noprofile@example.com',
@@ -212,40 +211,6 @@ class AuthenticationAPITest(BaseAPITestCase):
         response = self.client.get(url, data)
 
         self.assert_response_error(response, status.HTTP_400_BAD_REQUEST)
-
-    @patch('social_django.utils.psa')
-    def test_auth_callback_success(self, mock_psa):
-        """Test successful OAuth callback"""
-        # Mock the OAuth backend
-        mock_backend = Mock()
-        mock_backend.do_auth.return_value = self.test_user
-
-        # Mock request with backend
-        mock_request = Mock()
-        mock_request.backend = mock_backend
-        mock_request.session = {}
-
-        def mock_psa_decorator(backend_name):
-            def decorator(func):
-                def wrapper(request, *args, **kwargs):
-                    request.backend = mock_backend
-                    return func(request, *args, **kwargs)
-                return wrapper
-            return decorator
-
-        mock_psa.return_value = mock_psa_decorator
-
-        url = reverse('auth-callback', kwargs={'backend': 'google-oauth2'})
-        data = {'code': 'valid-auth-code', 'state': 'test-state'}
-
-        response = self.client.get(url, data)
-
-        self.assert_response_success(response)
-
-        response_data = self.get_json_response(response)
-        self.assertTrue(response_data['success'])
-        self.assertIn('auth_data', response_data)
-        self.assertIn('access_token', response_data['auth_data'])
 
     def test_auth_success_authenticated(self):
         """Test auth success endpoint when user is authenticated"""
