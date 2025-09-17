@@ -4,7 +4,7 @@ Tests for authentication system including JWT and OAuth flows
 import jwt
 import pytest
 from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -51,8 +51,8 @@ class JWTAuthenticationTest(TestCase):
         token = generate_jwt_token(self.user)
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
 
-        exp_time = datetime.utcfromtimestamp(payload['exp'])
-        iat_time = datetime.utcfromtimestamp(payload['iat'])
+        exp_time = datetime.fromtimestamp(payload['exp'], timezone.utc)
+        iat_time = datetime.fromtimestamp(payload['iat'], timezone.utc)
 
         expected_duration = timedelta(hours=24)
         actual_duration = exp_time - iat_time
@@ -123,8 +123,8 @@ class JWTAuthenticationTest(TestCase):
         expired_payload = {
             'user_id': self.user.pk,
             'email': self.user.email,
-            'exp': datetime.utcnow() - timedelta(hours=1),
-            'iat': datetime.utcnow() - timedelta(hours=25),
+            'exp': datetime.now(timezone.utc) - timedelta(hours=1),
+            'iat': datetime.now(timezone.utc) - timedelta(hours=25),
         }
 
         expired_token = jwt.encode(
@@ -155,8 +155,8 @@ class JWTAuthenticationTest(TestCase):
         payload = {
             'user_id': 99999,
             'email': 'nonexistent@example.com',
-            'exp': datetime.utcnow() + timedelta(hours=24),
-            'iat': datetime.utcnow(),
+            'exp': datetime.now(timezone.utc) + timedelta(hours=24),
+            'iat': datetime.now(timezone.utc),
         }
 
         token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
@@ -364,7 +364,6 @@ class AuthenticationIntegrationTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
-
 
         customer_id = getattr(self.customer, 'id', None)
         self.assertIsNotNone(customer_id)
