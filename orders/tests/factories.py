@@ -20,7 +20,6 @@ class OrderFactory(factory.django.DjangoModelFactory):
     delivery_address = Faker('address')
     delivery_notes = Faker('sentence', nb_words=6)
     status = Order.PENDING
-    status = Order.PENDING
 
 
 class PendingOrderFactory(OrderFactory):
@@ -213,11 +212,10 @@ def create_bulk_orders(customer=None, count=10):
             OrderItemFactory(order=order)
         
         order.calculate_totals()
-        orders.append(order)
+        order.calculate_totals()
         orders.append(order)
     
     return orders
-
 
 # Test scenario builders
 class OrderScenarioBuilder:
