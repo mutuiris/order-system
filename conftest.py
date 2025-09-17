@@ -2,14 +2,14 @@
 Shared pytest fixtures for order system tests
 """
 import pytest
+import os
 import django
 from django.conf import settings
 
-import os
 if not settings.configured:
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'order_system.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE',
+                          'order_system.test_settings')
     django.setup()
-
 
 from django.contrib.auth.models import User
 from django.test import Client
@@ -19,10 +19,12 @@ from customers.models import Customer
 from products.models import Category, Product
 from orders.models import Order, OrderItem
 
+
 @pytest.fixture
 def api_client():
     """API client for testing REST endpoints"""
     return APIClient()
+
 
 @pytest.fixture
 def authenticated_client(api_client, test_user):
@@ -33,10 +35,12 @@ def authenticated_client(api_client, test_user):
     api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
     return api_client
 
+
 @pytest.fixture
 def django_client():
     """Django test client"""
     return Client()
+
 
 @pytest.fixture
 def test_user():
@@ -49,14 +53,15 @@ def test_user():
         last_name='User'
     )
 
+
 @pytest.fixture
 def test_customer(test_user):
     """Create a test customer profile"""
     return Customer.objects.create(
         user=test_user,
-        phone='+254700123456',
-        address='Test City'
+        phone_number='+254700123456'
     )
+
 
 @pytest.fixture
 def admin_user():
@@ -67,6 +72,7 @@ def admin_user():
         password='adminpass123',
     )
 
+
 @pytest.fixture
 def root_category():
     """Create a root product category"""
@@ -75,6 +81,7 @@ def root_category():
         slug='electronics',
         level=0,
     )
+
 
 @pytest.fixture
 def child_category(root_category):
@@ -85,6 +92,7 @@ def child_category(root_category):
         parent=root_category,
         level=1,
     )
+
 
 @pytest.fixture
 def test_product(child_category):
@@ -97,6 +105,7 @@ def test_product(child_category):
         category=child_category,
         stock_quantity=50,
     )
+
 
 @pytest.fixture
 def multiple_products(child_category):
@@ -114,6 +123,7 @@ def multiple_products(child_category):
         products.append(product)
     return products
 
+
 @pytest.fixture
 def test_order(test_customer):
     """Create a test order"""
@@ -122,6 +132,7 @@ def test_order(test_customer):
         delivery_address='123 Test Street, Nairobi',
         delivery_notes='Test delivery notes'
     )
+
 
 @pytest.fixture
 def test_order_with_items(test_order, test_product):
@@ -133,6 +144,7 @@ def test_order_with_items(test_order, test_product):
     )
     test_order.calculate_totals()
     return test_order
+
 
 @pytest.fixture
 def mock_sms_service():
@@ -149,6 +161,7 @@ def mock_sms_service():
     with patch('order_system.services.sms_service.sms_service', mock_service):
         yield mock_service
 
+
 @pytest.fixture
 def mock_email_service():
     """Mock Email service for testing"""
@@ -157,10 +170,12 @@ def mock_email_service():
     with patch('django.core.mail.send_mail') as mock_send_mail:
         yield mock_send_mail
 
+
 @pytest.fixture(autouse=True)
 def enable_db_access_for_all_tests(db):
     """Enable database access for all tests"""
     pass
+
 
 @pytest.fixture
 def transactional_db_access(transactional_db):
@@ -186,6 +201,7 @@ def user_factory():
         )
     return create_user
 
+
 @pytest.fixture
 def customer_factory(user_factory):
     """Factory for creating customers"""
@@ -198,6 +214,7 @@ def customer_factory(user_factory):
 
         return Customer.objects.create(user=user, **defaults)
     return create_customer
+
 
 @pytest.fixture
 def product_factory():
