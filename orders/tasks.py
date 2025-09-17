@@ -18,7 +18,22 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=3)
 def send_order_sms(self, order_id: int) -> Dict[str, Any]:
-    """Send SMS notification to customer when order is placed."""
+    """
+    Send an SMS confirmation to the customer for a placed order.
+    
+    Retrieves the Order by id, composes a confirmation message containing order number and total,
+    and sends it via the project's SMS service. On successful delivery the order's `sms_sent`
+    flag is set to True and a success payload is returned. If the Order does not exist a
+    not-found payload is returned. On transient failures the task will retry (exponential
+    backoff up to the task's max_retries); on final failure an error payload is returned.
+    
+    Parameters:
+        order_id (int): Primary key of the Order to notify.
+    
+    Returns:
+        dict: A result payload. On success: {'success': True, 'order_number': str, 'phone_number': str, 'message': 'SMS sent successfully'}.
+              On failure: {'success': False, 'error': <error message or 'Order not found'>}.
+    """
     try:
         from .models import Order
         from order_system.services.sms_service import sms_service
@@ -66,7 +81,17 @@ def send_order_sms(self, order_id: int) -> Dict[str, Any]:
 
 @shared_task(bind=True, max_retries=3)
 def send_admin_email(self, order_id):
-    """Send email notification to admin when order is placed."""
+    """
+    Send an email notification to the admin for the given order.
+    
+    Attempts to retrieve the Order by id, build a summary email containing customer and order details, and send it via Django's mail system. On successful send the order's `email_sent` flag is set and a success payload is returned; on failure the task will retry with exponential backoff (via `self.retry`) up to the task's `max_retries`, after which an error payload is returned.
+    
+    Parameters:
+        order_id (int): Primary key of the order to notify about.
+    
+    Returns:
+        dict: On success: {'success': True, 'order_number': <str>}. On final failure: {'success': False, 'error': <str>}.
+    """
     try:
         from .models import Order
         
@@ -115,7 +140,15 @@ Notes: {order.delivery_notes or 'None'}
 
 @shared_task
 def send_order_notifications(order_id: int) -> Dict[str, Any]:
-    """Send both SMS and email notifications for new order."""
+    """
+    Enqueue SMS and admin-email Celery tasks to notify about a new order.
+    
+    Given an order ID, dispatches background tasks to send a customer SMS and an admin email.
+    Returns a dictionary containing the order_id, order_number, the dispatched tasks' IDs
+    ('sms_task_id' and 'email_task_id'), and a status message on success. If the order is not
+    found or task dispatching fails, returns an error payload with 'order_id', 'error', and
+    a 'message' describing the failure.
+    """
     logger.info(f"Starting notification tasks for order {order_id}")
 
     try:

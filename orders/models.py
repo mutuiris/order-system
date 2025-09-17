@@ -143,7 +143,15 @@ class Order(models.Model):
         return self.status in [self.PENDING, self.CONFIRMED]
     
     def mark_as_confirmed(self):
-        """Mark order as confirmed and trigger notifications"""
+        """
+        Mark the order as confirmed and attempt to send notifications.
+        
+        If the order is currently in the PENDING state, updates its status to CONFIRMED and saves the model.
+        Then tries to enqueue an asynchronous notification task by importing `send_order_notifications` from
+        `.tasks`. If the imported callable exposes a `delay` attribute (Celery), calls `delay(self.id)`.
+        If Celery is not available or the tasks module cannot be imported, the function logs a warning and
+        continues without raising an error.
+        """
         if self.status == self.PENDING:
             self.status = self.CONFIRMED
             self.save()
@@ -159,7 +167,14 @@ class Order(models.Model):
                 logger.warning("Tasks module not available, skipping notifications")
     
     def get_status_display_color(self):
-        """Return CSS color class for status display"""
+        """
+        Return the CSS color class associated with the order's status.
+        
+        Maps the model's status constants to Bootstrap-like color classes for use in templates and UI components. Unknown or unexpected statuses return 'secondary'.
+        
+        Returns:
+            str: CSS class name representing the status color (e.g., 'warning', 'info', 'primary', 'success', 'danger', 'secondary').
+        """
         status_colors = {
             self.PENDING: 'warning',
             self.CONFIRMED: 'info', 

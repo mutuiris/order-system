@@ -16,5 +16,9 @@ app.autodiscover_tasks()
 
 @app.task(bind=True)
 def debug_task(self):
-    """Debug task to verify Celery is working"""
+    """
+    Bound Celery debug task used to verify Celery is configured and running.
+    
+    When called (in development), it prints the current task request object — useful for inspecting the executing task's metadata (id, args, kwargs). Not intended for production use.
+    """
     print(f'Request: {self.request!r}')

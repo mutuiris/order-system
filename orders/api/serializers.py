@@ -141,7 +141,24 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """
-        Create order with items in a single database transaction
+        Create an Order and its OrderItem records in a single database transaction.
+        
+        Creates an Order for the customer found in self.context['request']. Expects validated_data to contain an 'items' key with a list of item dicts, each having keys 'product' (Product instance) and 'quantity' (int). For each item this method:
+        
+        - verifies stock is sufficient,
+        - creates an OrderItem linked to the created Order,
+        - decrements the product's stock via product.reduce_stock(quantity).
+        
+        The entire operation is wrapped in a transaction.atomic() block; if any stock check fails a serializers.ValidationError is raised and no database changes are committed. After all items are created the order.mark_as_confirmed() hook is called (typically to trigger notifications).
+        
+        Parameters:
+            validated_data (dict): Serializer-validated data; must include 'items'.
+        
+        Returns:
+            Order: The newly created Order instance.
+        
+        Raises:
+            serializers.ValidationError: If any product has insufficient stock for the requested quantity.
         """
         items_data = validated_data.pop('items')
 
@@ -197,7 +214,25 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
         fields = ['status', 'delivery_address', 'delivery_notes']
 
     def validate_status(self, value):
-        """Validate status transitions"""
+        """
+        Validate that the requested order status is an allowed transition from the instance's current status.
+        
+        Checks the current Order.status on self.instance and ensures `value` is in the set of permitted next statuses:
+        - PENDING -> CONFIRMED or CANCELLED
+        - CONFIRMED -> PROCESSING or CANCELLED
+        - PROCESSING -> SHIPPED
+        - SHIPPED -> DELIVERED
+        - DELIVERED and CANCELLED -> no further transitions
+        
+        Parameters:
+            value: The proposed new status value to validate.
+        
+        Returns:
+            The same `value` when the transition is permitted.
+        
+        Raises:
+            serializers.ValidationError: If `self.instance` is an Order and the transition from the current status to `value` is not allowed.
+        """
         if self.instance and isinstance(self.instance, Order):
             current_status = self.instance.status
 

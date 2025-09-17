@@ -14,13 +14,25 @@ class SMSService:
     """SMS service wrapper for Africa's Talking API."""
 
     def __init__(self):
+        """
+        Initialize the SMSService by loading Africa's Talking credentials and preparing the client cache.
+        
+        Reads AFRICASTALKING_USERNAME and AFRICASTALKING_API_KEY from Django settings, optionally reads AFRICASTALKING_SENDER_ID if present, and sets an internal _client cache to None for lazy initialization.
+        """
         self.username = settings.AFRICASTALKING_USERNAME
         self.api_key = settings.AFRICASTALKING_API_KEY
         self.sender_id = getattr(settings, 'AFRICASTALKING_SENDER_ID', None)
         self._client: Optional[Any] = None
 
     def _get_client(self) -> Optional[Any]:
-        """Initialize Africa's Talking client."""
+        """
+        Lazily initialize and return the Africa's Talking SMS client.
+        
+        On first call this dynamically imports and initializes the `africastalking` SDK using
+        the service credentials stored on the instance, caches the SMS client, and returns it.
+        Subsequent calls return the cached client. If initialization fails, logs the error and
+        returns None.
+        """
         if self._client is None:
             try:
                 import africastalking
@@ -34,7 +46,22 @@ class SMSService:
         return self._client
 
     def format_phone_number(self, phone_number: str) -> str:
-        """Format phone number for Kenya"""
+        """
+        Normalize a phone number into a Kenyan international format (+254...).
+        
+        This function strips all characters except digits and a leading '+' then normalizes common Kenyan phone formats:
+        - If already starts with '+254' it is returned unchanged.
+        - If starts with '254' it is prefixed with '+'.
+        - If starts with '0' it is converted to '+254' followed by the remaining digits (e.g. '0712...' -> '+254712...').
+        - If it is 9 digits and starts with '7' it is treated as a local mobile number and converted to '+254' + digits.
+        - For any other digits-only input, a leading '+' is added if missing.
+        
+        Parameters:
+            phone_number (str): Input phone number in any common format (may include spaces, dashes, or other punctuation).
+        
+        Returns:
+            str: Phone number normalized to an international format, usually starting with '+254'.
+        """
         clean = ''.join(c for c in phone_number if c.isdigit() or c == '+')
 
         if clean.startswith('+254'):
@@ -49,12 +76,40 @@ class SMSService:
             return clean if clean.startswith('+') else f'+{clean}'
 
     def validate_phone_number(self, phone_number: str) -> bool:
-        """Validate Kenya phone number format"""
+        """
+        Return True if the given phone number is a valid Kenyan mobile number in international format.
+        
+        The input is first normalized with format_phone_number. Returns True when the normalized number starts with "+2547" and has a total length of 13 characters (e.g. "+254712345678"); otherwise returns False.
+        """
         formatted = self.format_phone_number(phone_number)
         return formatted.startswith('+2547') and len(formatted) == 13
 
     def send_sms(self, phone_number: str, message: str) -> Dict[str, Any]:
-        """Send SMS to single recipient"""
+        """
+        Send an SMS to a single recipient using the configured Africa's Talking client.
+        
+        The provided phone number is normalized with format_phone_number and validated with validate_phone_number before sending.
+        If sending succeeds, the function returns a structured dict containing the raw API response, per-recipient results, and any extracted message IDs.
+        If validation fails or the SMS client cannot be initialized, returns an error-shaped dict.
+        
+        Parameters:
+            phone_number (str): Recipient phone number in any common Kenyan format (e.g. starting with 0, 7, 254, or +254); will be normalized.
+            message (str): Message body (must be non-empty after trimming).
+        
+        Returns:
+            Dict[str, Any]: A result dictionary. On success:
+                {
+                    'success': True,
+                    'message': str,           # human-readable summary
+                    'sent_to': [str],         # list of formatted recipient numbers
+                    'invalid_numbers': [],    # list of numbers considered invalid (always empty for single-recipient flow)
+                    'response': dict,         # raw API response from Africa's Talking
+                    'results': list,          # per-recipient result objects from the API
+                    'message_ids': list       # extracted records for recipients with status 'Success'
+                }
+            On failure:
+                {'success': False, 'error': str}  # error contains a brief description of the failure
+        """
         if not phone_number or not message.strip():
             return {'success': False, 'error': 'Phone number and message required'}
 
