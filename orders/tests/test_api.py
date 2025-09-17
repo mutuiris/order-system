@@ -332,7 +332,6 @@ class OrderAPIPytestTest:
         assert order is not None
         assert order.customer == test_customer
         assert order.items.count() == 1
-        assert order.items.count() == 1
         
         # Verify stock reduction
         product.refresh_from_db()
