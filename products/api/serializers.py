@@ -5,7 +5,7 @@ from ..models import Category, Product
 class CategorySerializer(serializers.ModelSerializer):
     """
     Serializer for Category model with hierarchy support
-    Includes parent and children relationships for tree navigication
+    Includes parent and children relationships for tree navigation
     """
 
     # Children categories for tree structure
