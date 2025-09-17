@@ -10,17 +10,30 @@ from django.utils.translation import gettext_lazy as _
 logger = logging.getLogger(__name__)
 
 
+def generate_jwt_token(user):
+    """Generate JWT token for authenticated user"""
+    payload = {
+        'user_id': user.pk,
+        'email': user.email,
+        'exp': datetime.now(timezone.utc) + timedelta(hours=24),
+        'iat': datetime.now(timezone.utc),
+    }
+
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+    return token
+
+
 class JWTAuthentication(authentication.BaseAuthentication):
     """
     Custom JWT authentication for API requests
-    Validated JWT tokens and returns authenticated user
+    Validates JWT tokens and returns authenticated user
     """
 
     authentication_header_prefix = 'Bearer'
 
     def authenticate(self, request):
         """
-        Authenticated the request and return a user, token tuple
+        Authenticate the request and return a user, token tuple
         """
         auth_header = request.META.get('HTTP_AUTHORIZATION')
 
@@ -29,20 +42,32 @@ class JWTAuthentication(authentication.BaseAuthentication):
 
         auth_header_parts = auth_header.split()
 
-        if len(auth_header_parts) != 2 or auth_header_parts[0] != self.authentication_header_prefix:
+        if len(auth_header_parts) == 0 or auth_header_parts[0] != self.authentication_header_prefix:
             return None
+
+        if len(auth_header_parts) != 2:
+            if len(auth_header_parts) == 1:
+                raise AuthenticationFailed(
+                    'Token string should not contain invalid characters')
+            else:
+                raise AuthenticationFailed(
+                    'Token string should not contain spaces')
 
         token = auth_header_parts[1]
 
-        if ' ' in token:
-            raise AuthenticationFailed(
-                'Token string should not contain spaces')
-
-        if not token:
+        if not token or len(token.strip()) == 0:
             raise AuthenticationFailed(
                 'Token string should not contain invalid characters')
 
         return self._authenticate_credentials(token)
+
+    def authenticate_header(self, request):
+        """
+        Return a string to be used as the value of the `WWW-Authenticate`
+        header in a `401 Unauthenticated` response, or `None` if the
+        authentication scheme should return `403 Permission Denied` responses.
+        """
+        return 'Bearer realm="api"'
 
     def _authenticate_credentials(self, token):
         """
@@ -73,29 +98,6 @@ class JWTAuthentication(authentication.BaseAuthentication):
 
         return user, token
 
-    def authenticate_header(self, request):
-        """
-        Return a string to be used as the value of the `WWW-Authenticate`
-        header in a `401 Unauthenticated` response, or `None` if the
-        authentication scheme should return `403 Permission Denied` responses.
-        """
-        return 'Bearer realm="api"'
-
-    @staticmethod
-    def generate_jwt_token(user):
-        """
-        Generate JWT token for authenticated user
-        """
-        payload = {
-            'user_id': user.pk,
-            'email': user.email,
-            'exp': datetime.now(timezone.utc) + timedelta(hours=24),
-            'iat': datetime.now(timezone.utc),
-        }
-
-        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
-        return token
-
     @staticmethod
     def get_user_from_token(token):
         """
@@ -107,8 +109,3 @@ class JWTAuthentication(authentication.BaseAuthentication):
             return payload
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
             return None
-
-
-def generate_jwt_token(user):
-    """Generate JWT token for authenticated user"""
-    return JWTAuthentication.generate_jwt_token(user)
