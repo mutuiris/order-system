@@ -1,48 +1,73 @@
 import jwt
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from django.conf import settings
 from django.contrib.auth.models import User
-from rest_framework import authentication, exceptions
+from rest_framework import authentication
+from rest_framework.exceptions import AuthenticationFailed
 from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
 
+def generate_jwt_token(user):
+    """Generate JWT token for authenticated user"""
+    payload = {
+        'user_id': user.pk,
+        'email': user.email,
+        'exp': datetime.now(timezone.utc) + timedelta(hours=24),
+        'iat': datetime.now(timezone.utc),
+    }
+
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+    return token
+
+
 class JWTAuthentication(authentication.BaseAuthentication):
     """
     Custom JWT authentication for API requests
-    Validated JWT tokens and returns authenticated user
+    Validates JWT tokens and returns authenticated user
     """
 
     authentication_header_prefix = 'Bearer'
 
     def authenticate(self, request):
         """
-        Authenticated the request and return a user, token tuple
+        Authenticate the request and return a user, token tuple
         """
-        auth_header = authentication.get_authorization_header(request).split()
+        auth_header = request.META.get('HTTP_AUTHORIZATION')
 
-        if not auth_header or auth_header[0].lower() != b'bearer':
+        if not auth_header:
             return None
 
-        if len(auth_header) == 1:
-            msg = _(
-                'Invalid token header. Token string should not contain invalid characters')
-            raise exceptions.AuthenticationFailed(msg)
+        auth_header_parts = auth_header.split()
 
-        if len(auth_header) > 2:
-            msg = _('Invalid token header. Token string should not contain spaces.')
-            raise exceptions.AuthenticationFailed(msg)
+        if len(auth_header_parts) == 0 or auth_header_parts[0] != self.authentication_header_prefix:
+            return None
 
-        try:
-            token = auth_header[1].decode('utf-8')
-        except UnicodeError:
-            msg = _(
-                'Invalid token header. Token string should not contain invalid characters.')
-            raise exceptions.AuthenticationFailed(msg)
+        if len(auth_header_parts) != 2:
+            if len(auth_header_parts) == 1:
+                raise AuthenticationFailed(
+                    'Token string should not contain invalid characters')
+            else:
+                raise AuthenticationFailed(
+                    'Token string should not contain spaces')
+
+        token = auth_header_parts[1]
+
+        if not token or len(token.strip()) == 0:
+            raise AuthenticationFailed(
+                'Token string should not contain invalid characters')
 
         return self._authenticate_credentials(token)
+
+    def authenticate_header(self, request):
+        """
+        Return a string to be used as the value of the `WWW-Authenticate`
+        header in a `401 Unauthenticated` response, or `None` if the
+        authentication scheme should return `403 Permission Denied` responses.
+        """
+        return 'Bearer realm="api"'
 
     def _authenticate_credentials(self, token):
         """
@@ -56,60 +81,31 @@ class JWTAuthentication(authentication.BaseAuthentication):
             )
         except jwt.ExpiredSignatureError:
             msg = _('Token has expired')
-            raise exceptions.AuthenticationFailed(msg)
-        except jwt.DecodeError:
-            msg = _('Error decoding token')
-            raise exceptions.AuthenticationFailed(msg)
+            raise AuthenticationFailed(msg)
         except jwt.InvalidTokenError:
-            msg = _('Invalid token')
-            raise exceptions.AuthenticationFailed(msg)
+            msg = _('Error decoding token')
+            raise AuthenticationFailed(msg)
 
         try:
-            user = User.objects.get(id=payload['user_id'])
+            user = User.objects.get(pk=payload['user_id'])
         except User.DoesNotExist:
             msg = _('No user matching this token was found')
-            raise exceptions.AuthenticationFailed(msg)
+            raise AuthenticationFailed(msg)
 
         if not user.is_active:
             msg = _('This user has been deactivated')
-            raise exceptions.AuthenticationFailed(msg)
+            raise AuthenticationFailed(msg)
 
-        return (user, token)
-
-    @staticmethod
-    def generate_jwt_token(user):
-        """
-        Generate JWT token for authenticated user
-        """
-        payload = {
-            'user_id': user.id,
-            'email': user.email,
-            'exp': datetime.utcnow() + timedelta(hours=24),
-            'iat': datetime.utcnow(),
-        }
-
-        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
-        return token
+        return user, token
 
     @staticmethod
     def get_user_from_token(token):
         """
-        Extract user information from JWT token for token validation
-        and user information extraction
+        Extract user information from JWT token without authentication
         """
         try:
             payload = jwt.decode(
                 token, settings.SECRET_KEY, algorithms=['HS256'])
-            return {
-                'user_id': payload.get('user_id'),
-                'email': payload.get('email'),
-                'exp': payload.get('exp'),
-                'iat': payload.get('iat'),
-            }
-        except (jwt.ExpiredSignatureError, jwt.DecodeError, jwt.InvalidTokenError):
+            return payload
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
             return None
-
-
-def generate_jwt_token(user):
-    """Generate JWT token for authenticated user"""
-    return JWTAuthentication.generate_jwt_token(user)

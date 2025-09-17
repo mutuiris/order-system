@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from social_django.utils import psa
 from social_core.backends.google import GoogleOAuth2
+from rest_framework.exceptions import NotAuthenticated
 import logging
 
 from ..models import Customer
@@ -31,6 +32,10 @@ class CustomerViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return only the authenticated user's customer profile"""
         user = self.request.user
+        if not user.is_authenticated:
+            raise NotAuthenticated(
+                "Authentication credentials were not provided.")
+
         customer_profile = getattr(user, 'customer_profile', None)
         if customer_profile is not None:
             return Customer.objects.filter(id=customer_profile.id)
@@ -47,6 +52,10 @@ class CustomerViewSet(viewsets.ModelViewSet):
         """
         Get current user profile information
         """
+        if not request.user.is_authenticated:
+            raise NotAuthenticated(
+                "Authentication credentials were not provided.")
+
         if not hasattr(request.user, 'customer_profile'):
             return Response(
                 {'error': 'Customer profile not found'},
@@ -61,6 +70,10 @@ class CustomerViewSet(viewsets.ModelViewSet):
         """
         Update current user profile information
         """
+        if not request.user.is_authenticated:
+            raise NotAuthenticated(
+                "Authentication credentials were not provided.")
+
         if not hasattr(request.user, 'customer_profile'):
             return Response(
                 {'error': 'Customer profile not found'},
@@ -112,38 +125,31 @@ def auth_callback(request, backend):
     """
     Handle OAuth2 callback from Google with proper validation
     """
-    serializer = AuthCallbackSerializer(data=request.GET)
-
-    if not serializer.is_valid():
-        return Response(
-            {'error': 'Invalid callback parameters', 'details': serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    code = serializer.validated_data['code']
-    state = serializer.validated_data.get('state')
-
-    # Verify state parameter if provided
-    if state:
-        session_state = request.session.get('oauth_state')
-        if state != session_state:
-            return Response(
-                {'error': 'Invalid state parameter - possible CSRF attack'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-    # Complete OAuth authentication
     try:
-        user = request.backend.do_auth(code)
-
-        if user is None:
+        # Validate callback parameters
+        serializer = AuthCallbackSerializer(data=request.GET)
+        if not serializer.is_valid():
             return Response(
-                {'error': 'Authentication failed - invalid authorization code'},
+                {'error': 'Invalid callback parameters',
+                    'details': serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Login the user
-        login(request, user)
+        # Check if user is authenticated through OAuth
+        if not hasattr(request, 'backend'):
+            return Response(
+                {'error': 'OAuth backend not properly configured'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Perform OAuth authentication
+        user = request.backend.do_auth(serializer.validated_data['code'])
+
+        if not user:
+            return Response(
+                {'error': 'OAuth authentication failed'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Ensure customer profile exists
         customer, created = Customer.objects.get_or_create(
@@ -230,6 +236,9 @@ def auth_logout(request):
     """
     Logout current user
     """
+    if not request.user.is_authenticated:
+        raise NotAuthenticated("Authentication credentials were not provided.")
+
     try:
         logout(request)
         return Response({
@@ -250,6 +259,9 @@ def auth_status(request):
     """
     Check authentication status
     """
+    if not request.user.is_authenticated:
+        raise NotAuthenticated("Authentication credentials were not provided.")
+
     if hasattr(request.user, 'customer_profile'):
         customer_data = CustomerSerializer(request.user.customer_profile).data
         return Response({

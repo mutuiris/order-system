@@ -1,0 +1,50 @@
+[run]
+source = .
+branch = True
+omit = 
+    */venv/*
+    */virtualenv/*
+    */migrations/*
+    */tests/*
+    manage.py
+    */settings/*
+    */venv/*
+    */__pycache__/*
+    */node_modules/*
+    .tox/*
+    */site-packages/*
+    */lib/python*/*
+    */conftest.py
+    */factories.py
+    order_system/asgi.py
+    order_system/wsgi.py
+    customers/views.py
+    products/views.py
+    orders/views.py
+    order_system/services/sms_service.py
+    orders/management/commands/test_sms.py
+
+[report]
+ignore_errors = True
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+
+    def __repr__
+    if self\.debug
+
+    raise AssertionError
+    raise NotImplementedError
+
+    if 0:
+    if __name__ == .__main__.:
+
+    @(abc\.)?abstractmethod
+
+[html]
+directory = htmlcov
+title = Order System Test Coverage
+
+[xml]
+output = coverage.xml
