@@ -369,7 +369,6 @@ class IntegrationPytestTest:
     def test_order_confirmation_workflow(self, mock_notifications) -> None:
         """Test order moves through confirmation workflow"""
         from customers.tests.factories import CustomerFactory
-        # ProductFactory is now imported at the top of the file
         
         customer = CustomerFactory()
         product = ProductFactory(stock_quantity=10)
