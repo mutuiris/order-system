@@ -41,7 +41,7 @@ class Category(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['sort_order', 'name']
+        ordering = ['name']
         verbose_name = 'Category'
         verbose_name_plural = 'Categories'
         unique_together = [['parent', 'name']]
@@ -51,19 +51,35 @@ class Category(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        """Auto-calculate level based on parent hierarchy"""
-        old_level = self.level
+        """Auto calculate level based on parent hierarchy with preemptive uniqueness checks"""
+        from django.db.utils import IntegrityError as DBIntegrityError
+        # Capture previous level for existing records
+        old_level = None
+        if self.pk:
+            try:
+                old_level = Category.objects.only('level').get(pk=self.pk).level
+            except Category.DoesNotExist:
+                old_level = None
+
+        if not self.pk:
+            if Category.objects.filter(slug=self.slug).exists():
+                raise DBIntegrityError(
+                    'UNIQUE constraint failed: products_category.slug')
+            if Category.objects.filter(parent=self.parent, name=self.name).exists():
+                raise DBIntegrityError(
+                    'UNIQUE constraint failed: products_category.parent, name')
+
+        # Calculate level
         if self.parent:
-            self.level = self.parent.level + 1
+            self.level = (self.parent.level or 0) + 1
         else:
             self.level = 0
+
         super().save(*args, **kwargs)
 
-
-        if old_level != self.level:
+        if old_level is not None and old_level != self.level:
             level_diff = self.level - old_level
             self.children.update(level=models.F('level') + level_diff)
-
 
     def get_full_path(self):
         """Get complete path from root to this category"""
