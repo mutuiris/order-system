@@ -17,7 +17,10 @@ omit =
     */conftest.py
     */factories.py
 
-# Regexes for lines to exclude from coverage
+[report]
+ignore_errors = True
+show_missing = True
+skip_covered = False
 exclude_lines =
     pragma: no cover
 
@@ -31,10 +34,6 @@ exclude_lines =
     if __name__ == .__main__.:
 
     @(abc\.)?abstractmethod
-
-ignore_errors = True
-show_missing = True
-skip_covered = False
 
 [html]
 directory = htmlcov
