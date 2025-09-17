@@ -2,6 +2,15 @@
 Shared pytest fixtures for order system tests
 """
 import pytest
+import django
+from django.conf import settings
+
+import os
+if not settings.configured:
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'order_system.settings')
+    django.setup()
+
+
 from django.contrib.auth.models import User
 from django.test import Client
 from rest_framework.test import APIClient
@@ -9,7 +18,6 @@ from rest_framework.test import APIClient
 from customers.models import Customer
 from products.models import Category, Product
 from orders.models import Order, OrderItem
-
 
 @pytest.fixture
 def api_client():
