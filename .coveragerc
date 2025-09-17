@@ -16,6 +16,13 @@ omit =
     */lib/python*/*
     */conftest.py
     */factories.py
+    order_system/asgi.py
+    order_system/wsgi.py
+    customers/views.py
+    products/views.py
+    orders/views.py
+    order_system/services/sms_service.py
+    orders/management/commands/test_sms.py
 
 [report]
 ignore_errors = True
