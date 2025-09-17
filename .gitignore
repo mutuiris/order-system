@@ -51,3 +51,12 @@ media/
 
 # Static files
 staticfiles/.env
+staticfiles/
+
+# Test and Coverage files
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+coverage.xml
