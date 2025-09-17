@@ -1,3 +1,4 @@
+import logging
 from django.db import models
 from django.core.validators import MinValueValidator
 from decimal import Decimal
@@ -7,6 +8,8 @@ from products.models import Product
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
+
+logger = logging.getLogger(__name__)
 
 
 class Order(models.Model):
@@ -144,10 +147,16 @@ class Order(models.Model):
         if self.status == self.PENDING:
             self.status = self.CONFIRMED
             self.save()
-            
-            # TODO: Add notification system later
-            # from .tasks import send_order_notifications
-            # send_order_notifications.delay(self.id)
+
+            try:
+                from .tasks import send_order_notifications
+                # Type hint for Pylance
+                if hasattr(send_order_notifications, 'delay'):
+                    send_order_notifications.delay(self.id) # pyright: ignore[reportFunctionMemberAccess]
+                else:
+                    logger.warning("Celery not available, skipping notification task")
+            except ImportError:
+                logger.warning("Tasks module not available, skipping notifications")
     
     def get_status_display_color(self):
         """Return CSS color class for status display"""

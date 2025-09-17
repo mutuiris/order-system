@@ -27,8 +27,26 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
+
 ALLOWED_HOSTS = os.environ.get(
     'ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+
+def get_allowed_hosts():
+    """Get allowed hosts with ngrok support for development"""
+    hosts = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+    if DEBUG:
+        hosts.extend([
+            '*.ngrok-free.app',
+            '*.ngrok.io',
+            '.ngrok.io',
+            '.ngrok-free.app'
+        ])
+
+    return [host.strip() for host in hosts if host.strip()]
+
+
+ALLOWED_HOSTS = get_allowed_hosts()
 
 # Application definition
 
@@ -107,7 +125,7 @@ SOCIAL_AUTH_PIPELINE = [
 # JWT Configuration for API authentication
 SOCIAL_AUTH_JSONFIELD_ENABLED = True
 
-## URLs
+# URLs
 SOCIAL_AUTH_LOGIN_URL = '/auth/login/google'
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/api/v1/auth/success'
 SOCIAL_AUTH_LOGOUT_REDIRECT_URL = '/api/v1/auth/logout'
@@ -202,3 +220,37 @@ REST_FRAMEWORK = {
         'order_system.authentication.JWTAuthentication',
     ],
 }
+
+# SMS CONFIGURATION
+AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME', 'sandbox')
+AFRICASTALKING_API_KEY = os.environ.get('AFRICASTALKING_API_KEY', '')
+AFRICASTALKING_SENDER_ID = os.environ.get(
+    'AFRICASTALKING_SENDER_ID', 'OrderSys')
+
+# Celery Configuration for Background Tasks
+CELERY_BROKER_URL = os.environ.get(
+    'CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get(
+    'CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# Email Configuration
+if DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+# Gmail SMTP Configuration
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+
+# Admin email settings
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'addyyangs@gmail.com')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER or 'noreply@order-system.com'
+SERVER_EMAIL = EMAIL_HOST_USER or 'noreply@order-system.com'
