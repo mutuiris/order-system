@@ -5,7 +5,7 @@ from ..models import Category, Product
 class CategorySerializer(serializers.ModelSerializer):
     """
     Serializer for Category model with hierarchy support
-    Includes parent and children relationships for tree navigigation
+    Includes parent and children relationships for tree navigication
     """
 
     # Children categories for tree structure
@@ -55,10 +55,19 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'level', 'children']
 
     def get_children(self, obj):
-        """Recursively get all children"""
-        children = obj.children.filter(
+        """Recursively get all children; include grandchildren at root level"""
+        children_qs = obj.children.filter(
             is_active=True).order_by('sort_order', 'name')
-        return CategoryTreeSerializer(children, many=True).data
+        serialized_children = CategoryTreeSerializer(
+            children_qs, many=True).data
+
+        flattened = list(serialized_children)
+        for child in children_qs:
+            gc_qs = child.children.filter(
+                is_active=True).order_by('sort_order', 'name')
+            if gc_qs.exists():
+                flattened.extend(CategoryTreeSerializer(gc_qs, many=True).data)
+        return flattened
 
 
 class ProductListSerializer(serializers.ModelSerializer):
