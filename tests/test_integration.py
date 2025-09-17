@@ -229,6 +229,8 @@ class AuthenticationOrderIntegrationTest(BaseAPITestCase):
 
         # Remove authentication and try again
         self.unauthenticate()
+        # Assert client is unauthenticated
+        assert not self.client._credentials or 'HTTP_AUTHORIZATION' not in self.client._credentials
         response = self.client.get(detail_url)
         self.assert_response_error(response, status.HTTP_401_UNAUTHORIZED)
     
