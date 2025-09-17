@@ -8,9 +8,10 @@ class UserSerializer(serializers.ModelSerializer):
     Serializer for User model information
     """
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'date_joined']
+        fields = ['id', 'username', 'email',
+                  'first_name', 'last_name', 'date_joined']
         read_only_fields = ['id', 'username', 'date_joined']
 
 
@@ -23,13 +24,14 @@ class CustomerSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
     email = serializers.ReadOnlyField()
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         model = Customer
         fields = [
-        'id', 'user', 'phone_number', 'full_name',
-        'email', 'is_active', 'created_at', 'updated_at'
+            'id', 'user', 'phone_number', 'full_name',
+            'email', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
 
 class CustomerUpdateSerializer(serializers.ModelSerializer):
     """
@@ -40,7 +42,7 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name', max_length=30)
     last_name = serializers.CharField(source='user.last_name', max_length=30)
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         model = Customer
         fields = ['phone_number', 'first_name', 'last_name']
 
@@ -60,6 +62,7 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
 
         return instance
 
+
 class AuthTokenSerializer(serializers.Serializer):
     """
     Serializer for authentication token response
@@ -75,10 +78,11 @@ class AuthTokenSerializer(serializers.Serializer):
         """Format authentication response"""
         return {
             'access_token': instance['access_token'],
-            'token_type': instance['token_type'],
+            'token_type': instance.get('token_type', 'Bearer'),
             'expires_in': instance['expires_in'],
             'user': instance['user']
         }
+
 
 class AuthCallbackSerializer(serializers.Serializer):
     """
