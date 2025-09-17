@@ -13,6 +13,8 @@ from customers.models import Customer
 from products.models import Category, Product
 from orders.models import Order, OrderItem
 from tests.base import BaseAPITestCase
+from products.tests.factories import ProductFactory
+from customers.tests.factories import create_user_with_customer
 
 
 class CompleteOrderWorkflowTest(BaseAPITestCase):
@@ -229,8 +231,7 @@ class AuthenticationOrderIntegrationTest(BaseAPITestCase):
 
         # Remove authentication and try again
         self.unauthenticate()
-        # Assert client is unauthenticated
-        assert not self.client._credentials or 'HTTP_AUTHORIZATION' not in self.client._credentials
+        # Assert client is unauthenticated by making a request and checking for 401
         response = self.client.get(detail_url)
         self.assert_response_error(response, status.HTTP_401_UNAUTHORIZED)
     
@@ -343,7 +344,6 @@ class IntegrationPytestTest:
         # Create customer
         from customers.tests.factories import create_user_with_customer
         user, customer = create_user_with_customer()
-        
         # Create order
         order = Order.objects.create(customer=customer)
         item = OrderItem.objects.create(order=order, product=product, quantity=3)
@@ -369,7 +369,7 @@ class IntegrationPytestTest:
     def test_order_confirmation_workflow(self, mock_notifications) -> None:
         """Test order moves through confirmation workflow"""
         from customers.tests.factories import CustomerFactory
-        from products.tests.factories import ProductFactory
+        # ProductFactory is now imported at the top of the file
         
         customer = CustomerFactory()
         product = ProductFactory(stock_quantity=10)
