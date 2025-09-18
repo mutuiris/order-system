@@ -22,27 +22,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("SECRET_KEY")
-
-if not SECRET_KEY:
-    raise ValueError("SECRET_KEY environment variable is required")
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY", "django-insecure-2w*9*(-8g4n&l1z0_kuj1(4s5^5#_c1)er+@xx@enh%u&97d3a"
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
 
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = os.environ.get(
+    "ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 
 def get_allowed_hosts():
-    """Get allowed hosts"""
+    """Get allowed hosts with ngrok support for development"""
     hosts = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-
-    # Add Render domains
-    hosts.extend(["*.onrender.com", ".onrender.com"])
-
     if DEBUG:
-        hosts.extend(["*.ngrok-free.app", "*.ngrok.io", ".ngrok.io", ".ngrok-free.app"])
+        hosts.extend(["*.ngrok-free.app", "*.ngrok.io",
+                     ".ngrok.io", ".ngrok-free.app"])
 
     return [host.strip() for host in hosts if host.strip()]
 
@@ -167,8 +164,10 @@ DATABASES = {
 }
 
 # Database configuration for Render
-if "DATABASE_URL" in os.environ:
-    DATABASES = {"default": dj_database_url.parse(os.environ["DATABASE_URL"])}
+if 'DATABASE_URL' in os.environ:
+    DATABASES = {
+        'default': dj_database_url.parse(os.environ['DATABASE_URL'])
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -203,7 +202,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # WhiteNoise settings
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
@@ -250,10 +249,12 @@ REST_FRAMEWORK = {
 # SMS CONFIGURATION
 AFRICASTALKING_USERNAME = os.environ.get("AFRICASTALKING_USERNAME", "sandbox")
 AFRICASTALKING_API_KEY = os.environ.get("AFRICASTALKING_API_KEY", "")
-AFRICASTALKING_SENDER_ID = os.environ.get("AFRICASTALKING_SENDER_ID", "ORDERSYS")
+AFRICASTALKING_SENDER_ID = os.environ.get(
+    "AFRICASTALKING_SENDER_ID", "ORDERSYS")
 
 # Celery Configuration for Background Tasks
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_BROKER_URL = os.environ.get(
+    "CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get(
     "CELERY_RESULT_BACKEND", "redis://localhost:6379/0"
 )
@@ -282,9 +283,7 @@ SERVER_EMAIL = EMAIL_HOST_USER or "noreply@order-system.com"
 
 # Security settings for production
 if not DEBUG:
-    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-
-APPEND_SLASH = True
