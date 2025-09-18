@@ -24,7 +24,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Category.objects.filter(
         is_active=True).order_by('sort_order', 'name')
     serializer_class = CategorySerializer
-    permission_classes = [AllowAny]  # TODO: Add authentication
+    permission_classes = [AllowAny]
     lookup_field = 'slug'
 
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
