@@ -34,4 +34,4 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
     CMD python manage.py check || exit 1
 
 # Updated CMD to use $PORT and include migrations
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:$PORT --workers 2 order_system.wsgi:application"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py create_superuser && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:$PORT --workers 2 order_system.wsgi:application"]
