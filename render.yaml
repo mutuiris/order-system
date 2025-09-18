@@ -41,3 +41,4 @@ services:
   - type: redis
     name: order-system-redis
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
