@@ -1,0 +1,43 @@
+databases:
+  - name: order-system-db
+    databaseName: order_system
+    user: order_user
+
+services:
+  - type: web
+    name: order-system-web
+    env: python
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate"
+    startCommand: "gunicorn order_system.wsgi:application"
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: order-system-db
+          property: connectionString
+      - key: DJANGO_SETTINGS_MODULE
+        value: "order_system.settings"
+      - key: ALLOWED_HOSTS
+        value: "*.onrender.com"
+
+  - type: worker
+    name: order-system-celery
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A order_system worker --loglevel=info"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: order-system-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        value: "redis://order-system-redis:6379/0"
+      - key: DJANGO_SETTINGS_MODULE
+        value: "order_system.settings"
+
+  - type: redis
+    name: order-system-redis
+    maxmemoryPolicy: allkeys-lru
