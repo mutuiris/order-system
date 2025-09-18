@@ -6,12 +6,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from ..models import Order, OrderItem
-from .serializers import (
-    OrderCreateSerializer,
-    OrderDetailSerializer,
-    OrderListSerializer,
-    OrderUpdateSerializer,
-)
+from .serializers import (OrderCreateSerializer, OrderDetailSerializer,
+                          OrderListSerializer, OrderUpdateSerializer)
 
 
 class OrderViewSet(viewsets.ModelViewSet):

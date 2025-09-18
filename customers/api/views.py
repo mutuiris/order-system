@@ -14,12 +14,8 @@ from social_django.utils import psa
 from order_system.authentication import generate_jwt_token
 
 from ..models import Customer
-from .serializers import (
-    AuthCallbackSerializer,
-    AuthTokenSerializer,
-    CustomerSerializer,
-    CustomerUpdateSerializer,
-)
+from .serializers import (AuthCallbackSerializer, AuthTokenSerializer,
+                          CustomerSerializer, CustomerUpdateSerializer)
 
 logger = logging.getLogger(__name__)
 

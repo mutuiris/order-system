@@ -12,7 +12,8 @@ from django.test import TestCase
 
 from customers.models import Customer
 from orders.models import Order, OrderItem
-from orders.tasks import send_admin_email, send_order_notifications, send_order_sms
+from orders.tasks import (send_admin_email, send_order_notifications,
+                          send_order_sms)
 from products.models import Category, Product
 
 

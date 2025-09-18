@@ -6,7 +6,8 @@ from decimal import Decimal
 from typing import Any, Dict, List, Tuple
 
 import factory
-from factory.declarations import LazyAttribute, LazyFunction, Sequence, SubFactory
+from factory.declarations import (LazyAttribute, LazyFunction, Sequence,
+                                  SubFactory)
 from factory.faker import Faker as FactoryFaker
 from factory.helpers import lazy_attribute, post_generation
 from faker import Faker

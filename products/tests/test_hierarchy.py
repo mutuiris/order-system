@@ -10,7 +10,8 @@ from django.db import transaction
 from django.test import TestCase, TransactionTestCase
 
 from products.models import Category, Product
-from products.tests.factories import CategoryHierarchyBuilder, create_category_hierarchy
+from products.tests.factories import (CategoryHierarchyBuilder,
+                                      create_category_hierarchy)
 
 
 class CategoryHierarchyTest(TestCase):
