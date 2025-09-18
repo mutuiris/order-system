@@ -156,3 +156,9 @@ def send_order_notifications(order_id: int) -> Dict[str, Any]:
             'error': str(e),
             'message': 'Notification tasks failed to start'
         }
+
+
+@shared_task
+def debug_task():
+    """Debug task for testing Celery connectivity"""
+    return "Celery is working"
