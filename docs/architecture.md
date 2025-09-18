@@ -1,469 +1,322 @@
 # System Architecture
 
-This document outlines the architectural decisions, design patterns, and technical rationale behind the Order System.
+This document outlines the architectural decisions and technical implementation of the Order System.
 
 ## Architecture Overview
 
-The system follows a **modular monolith** architecture pattern, organized into distinct Django applications with clear boundaries and responsibilities.
+The system follows a **modular monolith** architecture pattern, organized into distinct Django applications with clear boundaries.
 
-### High-Level Architecture
-
+### Application Structure
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Web Client    │    │   Mobile Client  │    │  Admin Panel    │
-└─────────┬───────┘    └─────────┬────────┘    └─────────┬───────┘
-          │                      │                       │
-          └──────────────────────┼───────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │     Load Balancer       │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   Django Application    │
-                    │   ┌─────────────────┐   │
-                    │   │   REST API      │   │
-                    │   │   (DRF)         │   │
-                    │   └─────────────────┘   │
-                    │   ┌─────────────────┐   │
-                    │   │  Business Logic │   │
-                    │   │  (Models/Views) │   │
-                    │   └─────────────────┘   │
-                    └────────────┬────────────┘
-                                 │
-            ┌────────────────────┼────────────────────┐
-            │                    │                    │
-   ┌────────▼────────┐  ┌───────▼────────┐  ┌───────▼────────┐
-   │   PostgreSQL    │  │     Redis       │  │  Celery Workers │
-   │   Database      │  │    Cache        │  │  (Background)   │
-   └─────────────────┘  └────────────────┘  └─────────┬───────┘
-                                                      │
-                                              ┌───────▼────────┐
-                                              │ External APIs  │
-                                              │ - SMS Gateway  │
-                                              │ - Email SMTP   │
-                                              └────────────────┘
-```
-
-## Application Architecture
-
-### Domain-Driven Design
-
-The system is organized into three primary domains:
-
-**Customer Domain (`customers/`)**
-- User authentication and profile management
-- OAuth2 integration and JWT token handling
-- Customer-specific business rules and validation
-
-**Product Domain (`products/`)**
-- Product catalog management
-- Hierarchical category system
-- Inventory tracking and pricing logic
-
-**Order Domain (`orders/`)**
-- Order lifecycle management
-- Payment processing and tax calculation
-- Notification and fulfillment coordination
-
-### Layered Architecture
-
-```
-┌─────────────────────────────────────────┐
-│           Presentation Layer            │
-│  ┌─────────────┐  ┌─────────────────┐   │
-│  │ REST API    │  │ Django Admin    │   │
-│  │ (DRF Views) │  │ Interface       │   │
-│  └─────────────┘  └─────────────────┘   │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│            Business Layer               │
-│  ┌─────────────┐  ┌─────────────────┐   │
-│  │ Serializers │  │ Business Logic  │   │
-│  │ Validation  │  │ (Model Methods) │   │
-│  └─────────────┘  └─────────────────┘   │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│             Data Layer                  │
-│  ┌─────────────┐  ┌─────────────────┐   │
-│  │ Django ORM  │  │ Database        │   │
-│  │ Models      │  │ (PostgreSQL)    │   │
-│  └─────────────┘  └─────────────────┘   │
-└─────────────────────────────────────────┘
+customers/     - User authentication and profile management
+products/      - Product catalog and hierarchical categories  
+orders/        - Order processing and workflow management
+order_system/  - Core configuration and shared services
 ```
 
 ## Database Design
 
-### Entity Relationship Design
+### Entity Relationships
 
-**Core Entities:**
-- **User**: Django's built-in authentication model
-- **Customer**: Extended user profile with business-specific fields
+**Core Models:**
+- **User**: Django's built-in authentication
+- **Customer**: Extended user profile with phone number
 - **Category**: Self-referencing hierarchical structure
 - **Product**: Catalog items with category associations
-- **Order**: Transaction header with workflow status
+- **Order**: Transaction with status workflow
 - **OrderItem**: Line items with price snapshots
 
-### Hierarchical Data Strategy
+### Hierarchical Categories
 
-**Challenge**: Store unlimited-depth category hierarchies efficiently
+**Implementation**: Modified Adjacency List with level denormalization
 
-**Solution**: Modified Adjacency List with level denormalization
-
-```sql
--- Category table structure
-CREATE TABLE categories (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    slug VARCHAR(120) UNIQUE NOT NULL,
-    parent_id INTEGER REFERENCES categories(id),
-    level INTEGER DEFAULT 0,
-    sort_order INTEGER DEFAULT 0
-);
-
--- Automatic level calculation on save
--- Enables efficient depth-based queries
+```python
+class Category(models.Model):
+    name = models.CharField(max_length=100)
+    parent = models.ForeignKey('self', null=True, blank=True)
+    level = models.PositiveIntegerField(default=0)  # Auto-calculated
+    
+    def save(self, *args, **kwargs):
+        if self.parent:
+            self.level = self.parent.level + 1
+        super().save(*args, **kwargs)
 ```
 
 **Benefits:**
+- Unlimited nesting depth
+- Efficient ancestor/descendant queries
 - Simple to understand and maintain
-- Efficient for reads (common pattern)
-- Supports unlimited nesting depth
-- Fast ancestor/descendant queries
-
-### Data Integrity Patterns
-
-**Price Snapshots:**
-```python
-# OrderItem preserves pricing at time of purchase
-class OrderItem(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.PROTECT)
-    unit_price = models.DecimalField()  # Snapshot from product.price
-    
-    def save(self):
-        if not self.unit_price:
-            self.unit_price = self.product.price  # Capture current price
-```
-
-**Soft Relationships:**
-```python
-# PROTECT prevents accidental data loss
-product = models.ForeignKey(Product, on_delete=models.PROTECT)
-category = models.ForeignKey(Category, on_delete=models.PROTECT)
-```
-
-## Service Architecture
-
-### Background Task Processing
-
-**Pattern**: Producer-Consumer with Celery
-
-```python
-# Producer (Order creation)
-def mark_as_confirmed(self):
-    self.status = self.CONFIRMED
-    self.save()
-    send_order_notifications.delay(self.id)  # Async task
-
-# Consumer (Celery worker)
-@shared_task(bind=True, max_retries=3)
-def send_order_sms(self, order_id):
-    # Retry logic with exponential backoff
-    try:
-        # SMS sending logic
-    except Exception as e:
-        raise self.retry(countdown=60 * (2 ** self.request.retries))
-```
-
-**Benefits:**
-- Non-blocking order confirmation
-- Fault tolerance with retry mechanisms
-- Scalable processing (add more workers)
-- Monitoring and debugging capabilities
-
-### External Service Integration
-
-**SMS Service Abstraction:**
-```python
-class SMSService:
-    def __init__(self):
-        self.client = self._get_client()
-    
-    def send_sms(self, phone_number, message):
-        # Standardized interface regardless of provider
-        # Error handling and retry logic
-        # Phone number validation and formatting
-```
-
-**Integration Patterns:**
-- **Adapter Pattern**: Consistent interface for external APIs
-- **Circuit Breaker**: Prevent cascade failures
-- **Retry with Backoff**: Handle temporary failures
-- **Fallback Mechanisms**: Graceful degradation
 
 ## Authentication Architecture
 
-### OAuth2 + JWT Hybrid Approach
+### OAuth2 + JWT Implementation
 
-**Flow Design:**
-```
-1. Client → Google OAuth2 Authorization Server
-2. Authorization Server → Callback with auth code  
-3. Backend exchanges code for user info
-4. Backend generates JWT token
-5. Client uses JWT for subsequent API calls
-```
+**Flow:**
+1. Client requests Google OAuth2 login URL
+2. User authenticates with Google
+3. Callback creates/updates user and customer profile
+4. Backend generates JWT token for API access
 
-**Technical Implementation:**
 ```python
-# OAuth pipeline customization
-SOCIAL_AUTH_PIPELINE = [
-    'social_core.pipeline.social_auth.social_details',
-    'social_core.pipeline.user.create_user',
-    'order_system.auth_pipeline.create_customer_profile',  # Custom step
-]
+# Custom pipeline step
+def create_customer_profile(strategy, details, user=None, *args, **kwargs):
+    if user and not hasattr(user, 'customer_profile'):
+        Customer.objects.get_or_create(
+            user=user, 
+            defaults={'phone_number': details.get('phone_number', '+254700000000')}
+        )
+```
 
-# JWT token generation
+**JWT Token Generation:**
+```python
 def generate_jwt_token(user):
     payload = {
         'user_id': user.pk,
         'email': user.email,
         'exp': datetime.now(timezone.utc) + timedelta(hours=24),
-        'iat': datetime.now(timezone.utc),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
 ```
 
-**Security Considerations:**
-- Stateless authentication (no session storage)
-- Short token expiration (24 hours)
-- Secure token transmission (HTTPS only in production)
-- No sensitive data in JWT payload
+## Background Task Processing
 
-## Technical Decision Rationale
+### Celery Implementation
+
+**Order Notification Flow:**
+```python
+# In Order model
+def mark_as_confirmed(self):
+    self.status = self.CONFIRMED
+    self.save()
+    send_order_notifications.delay(self.id)  # Async
+
+# Celery tasks
+@shared_task(bind=True, max_retries=3)
+def send_order_sms(self, order_id):
+    try:
+        order = Order.objects.get(id=order_id)
+        result = sms_service.send_sms(order.customer.phone_number, message)
+        if result['success']:
+            Order.objects.filter(id=order_id).update(sms_sent=True)
+    except Exception as e:
+        raise self.retry(countdown=60 * (2 ** self.request.retries))
+```
+
+**Task Coordination:**
+```python
+@shared_task
+def send_order_notifications(order_id):
+    sms_task = send_order_sms.delay(order_id)
+    email_task = send_admin_email.delay(order_id)
+    return {
+        'sms_task_id': sms_task.id,
+        'email_task_id': email_task.id
+    }
+```
+
+## External Service Integration
+
+### SMS Service (Africa's Talking)
+
+```python
+class SMSService:
+    def __init__(self):
+        self.username = settings.AFRICASTALKING_USERNAME
+        self.api_key = settings.AFRICASTALKING_API_KEY
+        
+    def send_sms(self, phone_number, message):
+        formatted_number = self.format_phone_number(phone_number)
+        if not self.validate_phone_number(phone_number):
+            return {'success': False, 'error': 'Invalid phone number'}
+            
+        client = africastalking.SMS
+        response = client.send(message=message, recipients=[formatted_number])
+        return {'success': True, 'message': 'SMS sent successfully'}
+```
+
+### Email Notifications
+
+```python
+@shared_task
+def send_admin_email(order_id):
+    order = Order.objects.get(id=order_id)
+    subject = f"New Order: #{order.order_number} - KES {order.total_amount}"
+    
+    mail.send_mail(
+        subject=subject,
+        message=format_order_details(order),
+        from_email=settings.EMAIL_HOST_USER,
+        recipient_list=[settings.ADMIN_EMAIL]
+    )
+```
+
+## API Design
+
+### RESTful Architecture
+
+**Endpoint Structure:**
+```
+/api/v1/categories/          - Category CRUD
+/api/v1/categories/tree/     - Hierarchical tree view
+/api/v1/products/           - Product catalog
+/api/v1/orders/             - Order management
+/api/v1/orders/{id}/cancel/ - Order actions
+/api/v1/customer/me/        - Profile management
+```
+
+**Authentication Pattern:**
+```python
+# JWT Authentication class
+class JWTAuthentication(authentication.BaseAuthentication):
+    def authenticate(self, request):
+        token = self.get_token_from_header(request)
+        if token:
+            user = self._authenticate_credentials(token)
+            return (user, token)
+        return None
+```
+
+## Data Integrity Patterns
+
+### Price Snapshots
+```python
+class OrderItem(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    unit_price = models.DecimalField()  # Snapshot at time of order
+    
+    def save(self, *args, **kwargs):
+        if not self.unit_price:
+            self.unit_price = self.product.price  # Capture current price
+        super().save(*args, **kwargs)
+```
+
+### Stock Management
+```python
+def create_order_with_items(self, validated_data):
+    with transaction.atomic():
+        # Reduce stock
+        for item_data in items_data:
+            product = item_data['product']
+            quantity = item_data['quantity']
+            
+            if product.stock_quantity < quantity:
+                raise ValidationError("Insufficient stock")
+                
+            product.stock_quantity -= quantity
+            product.save()
+```
+
+## Configuration Management
+
+### Environment-Based Settings
+```python
+# Core settings
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'default-key')
+
+# Database
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'order_system'),
+        'USER': os.environ.get('DB_USER', 'order_user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'order_pass'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+    }
+}
+
+# Celery
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+
+# SMS Configuration
+AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME', 'sandbox')
+AFRICASTALKING_API_KEY = os.environ.get('AFRICASTALKING_API_KEY', '')
+```
+
+## Testing Architecture
+
+### Test Structure
+```python
+# Base test classes
+class BaseAPITestCase(APITestCase):
+    def setUp(self):
+        self.test_user = User.objects.create_user(...)
+        self.test_customer = Customer.objects.create(...)
+        self.jwt_token = generate_jwt_token(self.test_user)
+    
+    def authenticate(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.jwt_token}')
+```
+
+### Factory Pattern
+```python
+class OrderFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Order
+    
+    customer = factory.SubFactory(CustomerFactory)
+    status = Order.PENDING
+    delivery_address = factory.Faker('address')
+```
+
+## Deployment Architecture
+
+### Docker Configuration
+```yaml
+# docker-compose.yml
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+  
+  redis:
+    image: redis:7
+  
+  web:
+    build: .
+    depends_on: [db, redis]
+    environment:
+      - DB_HOST=db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+  
+  celery:
+    build: .
+    command: celery -A order_system worker --loglevel=info
+    depends_on: [db, redis]
+```
+
+## Technical Decisions
 
 ### Technology Choices
 
-**Django REST Framework over FastAPI:**
-- **Rationale**: Mature ecosystem, built-in admin, ORM integration
-- **Trade-off**: Slightly slower performance for comprehensive features
-- **Context**: Business application with complex data relationships
+**Django REST Framework:**
+- Mature ecosystem with built-in admin interface
+- Excellent ORM for complex relationships
+- Comprehensive authentication and permissions
 
-**PostgreSQL over NoSQL:**
-- **Rationale**: ACID compliance, complex queries, hierarchical data
-- **Trade-off**: Horizontal scaling complexity vs data consistency
-- **Context**: Financial transactions require strong consistency
+**PostgreSQL:**
+- Excellent support for hierarchical data
+- Advanced querying capabilities
 
-**Celery over Django-RQ:**
-- **Rationale**: Advanced features (retries, monitoring, routing)
-- **Trade-off**: More complex setup vs comprehensive task management
-- **Context**: Production reliability requirements
+**Celery + Redis:**
+- Reliable background task processing
+- Retry mechanisms with exponential backoff
+- Task monitoring and debugging capabilities
 
-**JWT over Session Authentication:**
-- **Rationale**: Stateless, mobile-friendly, microservices-ready
-- **Trade-off**: Token management complexity vs scalability
-- **Context**: API-first architecture with multiple client types
+**JWT Authentication:**
+- Stateless authentication suitable for APIs
+- Integrates well with OAuth2 flow
 
-### Design Pattern Decisions
+### Design Patterns
 
-**Repository Pattern: Not Implemented**
-- **Decision**: Use Django ORM directly in views/serializers
-- **Rationale**: Django ORM provides sufficient abstraction
-- **Context**: Single database, straightforward queries
+**Repository Pattern: Not Used**
+- Django ORM provides sufficient abstraction
+- Direct model usage in views/serializers
 
-**CQRS Pattern: Not Implemented**
-- **Decision**: Single model for read/write operations
-- **Rationale**: Current scale doesn't justify complexity
-- **Context**: Monolithic architecture, moderate traffic
-
-**Event Sourcing: Partially Implemented**
-- **Decision**: Order status changes tracked, not full event sourcing
-- **Rationale**: Business audit requirements without full complexity
-- **Context**: Order workflow tracking needed, not all domain events
-
-## Scalability Considerations
-
-### Horizontal Scaling Strategy
-
-**Application Tier:**
-```yaml
-# Docker Compose scaling
-version: '3.8'
-services:
-  web:
-    image: order-system:latest
-    deploy:
-      replicas: 3  # Multiple app instances
-      
-  celery:
-    image: order-system:latest
-    deploy:
-      replicas: 5  # Scale background processing
-```
-
-**Database Scaling:**
-- **Current**: Single PostgreSQL instance
-- **Next Step**: Read replicas for reporting queries
-- **Long-term**: Sharding by customer_id or geographic region
-
-**Caching Strategy:**
-```python
-# Redis caching layers
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://redis:6379/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
-    }
-}
-
-# Cache usage patterns
-@cache_page(60 * 15)  # API response caching
-def category_tree_view(request):
-    pass
-
-# Database query caching
-categories = cache.get_or_set(
-    'category_hierarchy', 
-    lambda: Category.objects.prefetch_related('children'),
-    timeout=3600
-)
-```
-
-### Performance Optimization
-
-**Database Optimization:**
-```python
-# Query optimization patterns
-products = Product.objects.select_related('category').prefetch_related('order_items')
-
-# Database indexes
-class Meta:
-    indexes = [
-        models.Index(fields=['category', 'is_active']),
-        models.Index(fields=['created_at', 'status']),
-    ]
-```
-
-**API Response Optimization:**
-- Pagination for list endpoints (20 items per page)
-- Field selection with sparse fieldsets
-- Compression for large responses
-- ETags for cache validation
-
-## Monitoring and Observability
-
-### Health Check Strategy
-
-```python
-def health_check():
-    checks = {
-        'database': check_database_connection(),
-        'redis': check_redis_connection(), 
-        'celery': check_celery_workers(),
-        'external_apis': check_external_services(),
-    }
-    
-    overall_status = 'healthy' if all(checks.values()) else 'degraded'
-    return {'status': overall_status, 'checks': checks}
-```
-
-### Logging Architecture
-
-```python
-LOGGING = {
-    'version': 1,
-    'handlers': {
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': 'django.log',
-            'formatter': 'verbose',
-        },
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-    },
-    'loggers': {
-        'orders.tasks': {
-            'handlers': ['file', 'console'],
-            'level': 'INFO',
-        },
-    },
-}
-```
-
-## Security Architecture
-
-### Security Boundaries
-
-**Input Validation:**
-- Serializer-level validation for all API inputs
-- Database constraint enforcement
-- File upload restrictions and scanning
-
-**Authentication & Authorization:**
-- OAuth2 for user authentication
-- JWT for session management
-- Permission classes for endpoint access control
-
-**Data Protection:**
-- Environment variable configuration
-- Database connection encryption
-- HTTPS enforcement in production
-- Sensitive data exclusion from logs
-
-### Security Headers
-
-```python
-# Production security settings
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-X_FRAME_OPTIONS = 'DENY'
-```
-
-## Future Architecture Evolution
-
-### Microservices Migration Path
-
-**Phase 1**: Extract notification service
-```
-Order Service → Notification Service (SMS/Email)
-Benefits: Independent scaling, technology diversity
-```
-
-**Phase 2**: Extract authentication service  
-```
-Centralized auth service for multiple applications
-Benefits: Single sign-on, consistent security
-```
-
-**Phase 3**: Extract product catalog service
-```
-Dedicated catalog service with advanced search
-Benefits: Search optimization, caching strategies
-```
-
-### Technology Evolution
-
-**API Gateway Introduction:**
-- Rate limiting and throttling
-- Request/response transformation
-- API versioning and routing
-
-**Event-Driven Architecture:**
-- Message queues for service communication  
-- Event sourcing for audit trails
-- CQRS for read/write separation
-
-**Container Orchestration:**
-- Kubernetes for production deployment
-- Auto-scaling based on metrics
-- Rolling deployments and health checks
+**Service Layer: Minimal**
+- Business logic primarily in model methods
+- External services wrapped in simple classes
