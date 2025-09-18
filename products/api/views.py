@@ -8,9 +8,13 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from ..models import Category, Product
-from .serializers import (CategoryAveragePriceSerializer, CategorySerializer,
-                          CategoryTreeSerializer, ProductDetailSerializer,
-                          ProductListSerializer)
+from .serializers import (
+    CategoryAveragePriceSerializer,
+    CategorySerializer,
+    CategoryTreeSerializer,
+    ProductDetailSerializer,
+    ProductListSerializer,
+)
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):

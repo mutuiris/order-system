@@ -7,11 +7,13 @@ from decimal import Decimal
 
 import pytest
 
-from products.api.serializers import (CategoryAveragePriceSerializer,
-                                      CategorySerializer,
-                                      CategoryTreeSerializer,
-                                      ProductDetailSerializer,
-                                      ProductListSerializer)
+from products.api.serializers import (
+    CategoryAveragePriceSerializer,
+    CategorySerializer,
+    CategoryTreeSerializer,
+    ProductDetailSerializer,
+    ProductListSerializer,
+)
 from products.models import Category, Product
 
 
