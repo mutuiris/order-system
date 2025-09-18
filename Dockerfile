@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set work directory
 WORKDIR /app
 
-# Install Python dependencies
+# Copy and install requirements
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
@@ -39,5 +39,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
     CMD python manage.py check || exit 1
 
-# Run application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "order_system.wsgi:application"]
+# Run application with full path
+CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "order_system.wsgi:application"]
