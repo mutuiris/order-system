@@ -2,6 +2,7 @@
 Unit tests for Product and Category models
 Tests hierarchy, business logic, and model relationships
 """
+
 from decimal import Decimal
 
 import pytest
@@ -18,23 +19,16 @@ class CategoryModelTest(TestCase):
     def setUp(self):
         """Set up test data"""
         self.root_category = Category.objects.create(
-            name='Electronics',
-            slug='electronics'
+            name="Electronics", slug="electronics"
         )
 
     def test_category_hierarchy_creation(self):
         """Test creating category hierarchy with automatic level calculation"""
         child = Category.objects.create(
-            name='Smartphones',
-            slug='smartphones',
-            parent=self.root_category
+            name="Smartphones", slug="smartphones", parent=self.root_category
         )
 
-        grandchild = Category.objects.create(
-            name='iPhone',
-            slug='iphone',
-            parent=child
-        )
+        grandchild = Category.objects.create(name="iPhone", slug="iphone", parent=child)
 
         # Test hierarchy levels are auto calculated
         self.assertEqual(self.root_category.level, 0)
@@ -44,40 +38,29 @@ class CategoryModelTest(TestCase):
     def test_category_full_path_generation(self):
         """Test full path generation for category hierarchy"""
         child = Category.objects.create(
-            name='Smartphones',
-            slug='smartphones',
-            parent=self.root_category
+            name="Smartphones", slug="smartphones", parent=self.root_category
         )
 
-        grandchild = Category.objects.create(
-            name='iPhone',
-            slug='iphone',
-            parent=child
-        )
+        grandchild = Category.objects.create(name="iPhone", slug="iphone", parent=child)
 
-        self.assertEqual(self.root_category.get_full_path(), 'Electronics')
-        self.assertEqual(child.get_full_path(), 'Electronics > Smartphones')
-        self.assertEqual(grandchild.get_full_path(),
-                         'Electronics > Smartphones > iPhone')
+        self.assertEqual(self.root_category.get_full_path(), "Electronics")
+        self.assertEqual(child.get_full_path(), "Electronics > Smartphones")
+        self.assertEqual(
+            grandchild.get_full_path(), "Electronics > Smartphones > iPhone"
+        )
 
     def test_category_descendants_collection(self):
         """Test getting all descendant categories"""
         child1 = Category.objects.create(
-            name='Child1',
-            slug='child1',
-            parent=self.root_category
+            name="Child1", slug="child1", parent=self.root_category
         )
 
         child2 = Category.objects.create(
-            name='Child2',
-            slug='child2',
-            parent=self.root_category
+            name="Child2", slug="child2", parent=self.root_category
         )
 
         grandchild = Category.objects.create(
-            name='GrandChild',
-            slug='grandchild',
-            parent=child1
+            name="GrandChild", slug="grandchild", parent=child1
         )
 
         descendants = self.root_category.get_descendants()
@@ -89,22 +72,18 @@ class CategoryModelTest(TestCase):
 
     def test_category_unique_constraints(self):
         """Test category uniqueness constraints"""
-        Category.objects.create(name='First', slug='duplicate')
+        Category.objects.create(name="First", slug="duplicate")
 
         with self.assertRaises(IntegrityError):
-            Category.objects.create(name='Second', slug='duplicate')
+            Category.objects.create(name="Second", slug="duplicate")
 
         Category.objects.create(
-            name='Duplicate',
-            slug='duplicate1',
-            parent=self.root_category
+            name="Duplicate", slug="duplicate1", parent=self.root_category
         )
 
         with self.assertRaises(IntegrityError):
             Category.objects.create(
-                name='Duplicate',
-                slug='duplicate2',
-                parent=self.root_category
+                name="Duplicate", slug="duplicate2", parent=self.root_category
             )
 
 
@@ -114,18 +93,17 @@ class ProductModelTest(TestCase):
     def setUp(self):
         """Set up test data"""
         self.category = Category.objects.create(
-            name='Test Category',
-            slug='test-category'
+            name="Test Category", slug="test-category"
         )
 
     def test_product_stock_management(self):
         """Test product stock reduction functionality"""
         product = Product.objects.create(
-            name='Stock Test Product',
-            sku='STOCK-TEST-001',
-            price=Decimal('99.99'),
+            name="Stock Test Product",
+            sku="STOCK-TEST-001",
+            price=Decimal("99.99"),
             category=self.category,
-            stock_quantity=10
+            stock_quantity=10,
         )
 
         # Test successful stock reduction
@@ -141,12 +119,12 @@ class ProductModelTest(TestCase):
     def test_product_availability_logic(self):
         """Test product availability business logic"""
         product = Product.objects.create(
-            name='Availability Test',
-            sku='AVAIL-001',
-            price=Decimal('99.99'),
+            name="Availability Test",
+            sku="AVAIL-001",
+            price=Decimal("99.99"),
             category=self.category,
             stock_quantity=5,
-            is_active=True
+            is_active=True,
         )
 
         # Product with stock and active should be available
@@ -167,46 +145,46 @@ class ProductModelTest(TestCase):
         """Test product price validation rules"""
         # Valid minimum price
         product = Product.objects.create(
-            name='Valid Product',
-            sku='VALID-001',
-            price=Decimal('0.01'),
-            category=self.category
+            name="Valid Product",
+            sku="VALID-001",
+            price=Decimal("0.01"),
+            category=self.category,
         )
-        self.assertEqual(product.price, Decimal('0.01'))
+        self.assertEqual(product.price, Decimal("0.01"))
 
         with self.assertRaises(ValidationError):
             product = Product(
-                name='Invalid Product',
-                sku='INVALID-001',
-                price=Decimal('0.00'),
-                category=self.category
+                name="Invalid Product",
+                sku="INVALID-001",
+                price=Decimal("0.00"),
+                category=self.category,
             )
             product.full_clean()
 
     def test_product_sku_uniqueness(self):
         """Test product SKU uniqueness constraint"""
         Product.objects.create(
-            name='First Product',
-            sku='DUPLICATE-SKU',
-            price=Decimal('99.99'),
-            category=self.category
+            name="First Product",
+            sku="DUPLICATE-SKU",
+            price=Decimal("99.99"),
+            category=self.category,
         )
 
         with self.assertRaises(IntegrityError):
             Product.objects.create(
-                name='Second Product',
-                sku='DUPLICATE-SKU',
-                price=Decimal('199.99'),
-                category=self.category
+                name="Second Product",
+                sku="DUPLICATE-SKU",
+                price=Decimal("199.99"),
+                category=self.category,
             )
 
     def test_product_category_relationship_protection(self):
         """Test that categories with products cannot be deleted"""
         product = Product.objects.create(
-            name='Protected Product',
-            sku='PROT-001',
-            price=Decimal('99.99'),
-            category=self.category
+            name="Protected Product",
+            sku="PROT-001",
+            price=Decimal("99.99"),
+            category=self.category,
         )
 
         with self.assertRaises(Exception):

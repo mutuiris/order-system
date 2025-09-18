@@ -21,64 +21,52 @@ class Order(models.Model):
     """
 
     # Order status choices
-    PENDING = 'PENDING'
-    CONFIRMED = 'CONFIRMED'
-    PROCESSING = 'PROCESSING'
-    SHIPPED = 'SHIPPED'
-    DELIVERED = 'DELIVERED'
-    CANCELLED = 'CANCELLED'
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+    PROCESSING = "PROCESSING"
+    SHIPPED = "SHIPPED"
+    DELIVERED = "DELIVERED"
+    CANCELLED = "CANCELLED"
 
     STATUS_CHOICES = [
-        (PENDING, 'Pending'),
-        (CONFIRMED, 'Confirmed'),
-        (PROCESSING, 'Processing'),
-        (SHIPPED, 'Shipped'),
-        (DELIVERED, 'Delivered'),
-        (CANCELLED, 'Cancelled'),
+        (PENDING, "Pending"),
+        (CONFIRMED, "Confirmed"),
+        (PROCESSING, "Processing"),
+        (SHIPPED, "Shipped"),
+        (DELIVERED, "Delivered"),
+        (CANCELLED, "Cancelled"),
     ]
 
     # Customer who placed the order
     customer = models.ForeignKey(
-        Customer,
-        on_delete=models.PROTECT,
-        related_name='orders'
+        Customer, on_delete=models.PROTECT, related_name="orders"
     )
 
     # Type hint
     if TYPE_CHECKING:
-        items: 'QuerySet[OrderItem]'
+        items: "QuerySet[OrderItem]"
         id: int
 
     # Order tracking
     order_number = models.CharField(
         max_length=20,
         unique=True,
-        help_text="Unique order identifier for customer reference"
+        help_text="Unique order identifier for customer reference",
     )
 
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default=PENDING
-    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
 
     # Financial totals that calculates from order items
     subtotal = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=Decimal('0.00')
+        max_digits=10, decimal_places=2, default=Decimal("0.00")
     )
 
     tax_amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=Decimal('0.00')
+        max_digits=10, decimal_places=2, default=Decimal("0.00")
     )
 
     total_amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=Decimal('0.00')
+        max_digits=10, decimal_places=2, default=Decimal("0.00")
     )
 
     # Delivery information
@@ -94,9 +82,9 @@ class Order(models.Model):
     email_sent = models.BooleanField(default=False)
 
     class Meta:
-        ordering = ['-created_at']
-        verbose_name = 'Order'
-        verbose_name_plural = 'Orders'
+        ordering = ["-created_at"]
+        verbose_name = "Order"
+        verbose_name_plural = "Orders"
 
     def __str__(self):
         return f"Order {self.order_number} - {self.customer.user.email}"
@@ -112,7 +100,7 @@ class Order(models.Model):
         import uuid
         from datetime import datetime
 
-        date_part = datetime.now().strftime('%Y%m%d')
+        date_part = datetime.now().strftime("%Y%m%d")
         unique_part = str(uuid.uuid4())[:4].upper()
         return f"ORD-{date_part}-{unique_part}"
 
@@ -123,7 +111,7 @@ class Order(models.Model):
         self.subtotal = sum(item.line_total for item in items)
 
         # Tax calculation
-        self.tax_amount = self.subtotal * Decimal('0.16')
+        self.tax_amount = self.subtotal * Decimal("0.16")
 
         self.total_amount = self.subtotal + self.tax_amount
 
@@ -131,7 +119,7 @@ class Order(models.Model):
         Order.objects.filter(pk=self.pk).update(
             subtotal=self.subtotal,
             tax_amount=self.tax_amount,
-            total_amount=self.total_amount
+            total_amount=self.total_amount,
         )
 
     @property
@@ -150,29 +138,30 @@ class Order(models.Model):
 
         if self.status != self.CONFIRMED:
             self.status = self.CONFIRMED
-            self.save(update_fields=['status', 'updated_at'])
+            self.save(update_fields=["status", "updated_at"])
 
         try:
-            send_order_notifications.delay(self.id)  # pyright: ignore[reportFunctionMemberAccess]
+            send_order_notifications.delay(
+                self.id
+            )  # pyright: ignore[reportFunctionMemberAccess]
         except Exception as e:
             logger = logging.getLogger(__name__)
             logger.warning(
-                "Failed to enqueue notifications for order %s: %s",
-                self.pk, str(e)
+                "Failed to enqueue notifications for order %s: %s", self.pk, str(e)
             )
         return self
 
     def get_status_display_color(self):
         """Return CSS color class for status display"""
         status_colors = {
-            self.PENDING: 'warning',
-            self.CONFIRMED: 'info',
-            self.PROCESSING: 'primary',
-            self.SHIPPED: 'success',
-            self.DELIVERED: 'success',
-            self.CANCELLED: 'danger',
+            self.PENDING: "warning",
+            self.CONFIRMED: "info",
+            self.PROCESSING: "primary",
+            self.SHIPPED: "success",
+            self.DELIVERED: "success",
+            self.CANCELLED: "danger",
         }
-        return status_colors.get(self.status, 'secondary')
+        return status_colors.get(self.status, "secondary")
 
 
 class OrderItem(models.Model):
@@ -182,17 +171,11 @@ class OrderItem(models.Model):
     """
 
     # Link to order header
-    order = models.ForeignKey(
-        Order,
-        on_delete=models.CASCADE,
-        related_name='items'
-    )
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
 
     # Product information that snapshot at time of order
     product = models.ForeignKey(
-        Product,
-        on_delete=models.PROTECT,
-        related_name='order_items'
+        Product, on_delete=models.PROTECT, related_name="order_items"
     )
 
     # Type hints
@@ -204,32 +187,28 @@ class OrderItem(models.Model):
     product_sku = models.CharField(max_length=50)
 
     # Quantity ordered
-    quantity = models.PositiveIntegerField(
-        validators=[MinValueValidator(1)]
-    )
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
 
     # Price snapshot what customer actually paid
     unit_price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Price per unit at time of order"
+        max_digits=10, decimal_places=2, help_text="Price per unit at time of order"
     )
 
     # Calculated field
     line_total = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="quantity * unit_price"
+        max_digits=10, decimal_places=2, help_text="quantity * unit_price"
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = 'Order Item'
-        verbose_name_plural = 'Order Items'
+        verbose_name = "Order Item"
+        verbose_name_plural = "Order Items"
 
     def __str__(self):
-        return f"{self.quantity}x {self.product_name} (Order: {self.order.order_number})"
+        return (
+            f"{self.quantity}x {self.product_name} (Order: {self.order.order_number})"
+        )
 
     def save(self, *args, **kwargs):
         """Auto-populate snapshot fields and calculate line total"""
@@ -244,7 +223,7 @@ class OrderItem(models.Model):
         super().save(*args, **kwargs)
 
         # Update order totals after saving line item
-        if kwargs.get('update_totals', True):
+        if kwargs.get("update_totals", True):
             self.order.calculate_totals()
 
     def delete(self, *args, **kwargs):
@@ -260,7 +239,7 @@ class OrderItem(models.Model):
         current_price = self.product.price
         if current_price > self.unit_price:
             return (current_price - self.unit_price) * self.quantity
-        return Decimal('0.00')
+        return Decimal("0.00")
 
     def is_in_stock(self):
         """Check if ordered quantity is still available"""

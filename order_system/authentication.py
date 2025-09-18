@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 def generate_jwt_token(user):
     """Generate JWT token for authenticated user"""
     payload = {
-        'user_id': user.pk,
-        'email': user.email,
-        'exp': datetime.now(timezone.utc) + timedelta(hours=24),
-        'iat': datetime.now(timezone.utc),
+        "user_id": user.pk,
+        "email": user.email,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=24),
+        "iat": datetime.now(timezone.utc),
     }
 
-    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
     return token
 
 
@@ -30,35 +30,39 @@ class JWTAuthentication(authentication.BaseAuthentication):
     Validates JWT tokens and returns authenticated user
     """
 
-    authentication_header_prefix = 'Bearer'
+    authentication_header_prefix = "Bearer"
 
     def authenticate(self, request):
         """
         Authenticate the request and return a user, token tuple
         """
-        auth_header = request.META.get('HTTP_AUTHORIZATION')
+        auth_header = request.META.get("HTTP_AUTHORIZATION")
 
         if not auth_header:
             return None
 
         auth_header_parts = auth_header.split()
 
-        if len(auth_header_parts) == 0 or auth_header_parts[0] != self.authentication_header_prefix:
+        if (
+            len(auth_header_parts) == 0
+            or auth_header_parts[0] != self.authentication_header_prefix
+        ):
             return None
 
         if len(auth_header_parts) != 2:
             if len(auth_header_parts) == 1:
                 raise AuthenticationFailed(
-                    'Token string should not contain invalid characters')
+                    "Token string should not contain invalid characters"
+                )
             else:
-                raise AuthenticationFailed(
-                    'Token string should not contain spaces')
+                raise AuthenticationFailed("Token string should not contain spaces")
 
         token = auth_header_parts[1]
 
         if not token or len(token.strip()) == 0:
             raise AuthenticationFailed(
-                'Token string should not contain invalid characters')
+                "Token string should not contain invalid characters"
+            )
 
         return self._authenticate_credentials(token)
 
@@ -75,26 +79,22 @@ class JWTAuthentication(authentication.BaseAuthentication):
         Authenticate given credentials and return user
         """
         try:
-            payload = jwt.decode(
-                token,
-                settings.SECRET_KEY,
-                algorithms=['HS256']
-            )
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
-            msg = _('Token has expired')
+            msg = _("Token has expired")
             raise AuthenticationFailed(msg)
         except jwt.InvalidTokenError:
-            msg = _('Error decoding token')
+            msg = _("Error decoding token")
             raise AuthenticationFailed(msg)
 
         try:
-            user = User.objects.get(pk=payload['user_id'])
+            user = User.objects.get(pk=payload["user_id"])
         except User.DoesNotExist:
-            msg = _('No user matching this token was found')
+            msg = _("No user matching this token was found")
             raise AuthenticationFailed(msg)
 
         if not user.is_active:
-            msg = _('This user has been deactivated')
+            msg = _("This user has been deactivated")
             raise AuthenticationFailed(msg)
 
         return user, token
@@ -105,8 +105,7 @@ class JWTAuthentication(authentication.BaseAuthentication):
         Extract user information from JWT token without authentication
         """
         try:
-            payload = jwt.decode(
-                token, settings.SECRET_KEY, algorithms=['HS256'])
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
             return payload
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
             return None

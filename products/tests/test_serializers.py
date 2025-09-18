@@ -2,26 +2,44 @@
 Unit tests for products app serializers
 Test serialization, validation and custom methods for category and product serializers
 """
+
 from decimal import Decimal
 
 import pytest
 
-from products.api.serializers import (CategoryAveragePriceSerializer,
-                                      CategorySerializer,
-                                      CategoryTreeSerializer,
-                                      ProductDetailSerializer,
-                                      ProductListSerializer)
+from products.api.serializers import (
+    CategoryAveragePriceSerializer,
+    CategorySerializer,
+    CategoryTreeSerializer,
+    ProductDetailSerializer,
+    ProductListSerializer,
+)
 from products.models import Category, Product
 
 
 @pytest.mark.django_db
 def test_category_serializer_core_fields_and_product_count():
     parent = Category.objects.create(name="Electronics", slug="electronics")
-    child = Category.objects.create(name="Smartphones", slug="smartphones", parent=parent)
+    child = Category.objects.create(
+        name="Smartphones", slug="smartphones", parent=parent
+    )
 
     # Active and inactive products
-    Product.objects.create(name="Active Phone", sku="A-1", price=Decimal("299.99"), category=child, stock_quantity=5)
-    Product.objects.create(name="Inactive Phone", sku="I-1", price=Decimal("199.99"), category=child, stock_quantity=3, is_active=False)
+    Product.objects.create(
+        name="Active Phone",
+        sku="A-1",
+        price=Decimal("299.99"),
+        category=child,
+        stock_quantity=5,
+    )
+    Product.objects.create(
+        name="Inactive Phone",
+        sku="I-1",
+        price=Decimal("199.99"),
+        category=child,
+        stock_quantity=3,
+        is_active=False,
+    )
 
     data_root = CategorySerializer(parent).data
     assert data_root["name"] == "Electronics"
@@ -62,7 +80,9 @@ def test_category_tree_serializer_structure():
         (False, 0, False),
     ],
 )
-def test_product_list_serializer_availability_and_category_path(is_active, stock, expected):
+def test_product_list_serializer_availability_and_category_path(
+    is_active, stock, expected
+):
     parent = Category.objects.create(name="Parent Category", slug="parent")
     child = Category.objects.create(name="Test Category", slug="test", parent=parent)
     p = Product.objects.create(
@@ -84,13 +104,26 @@ def test_product_list_serializer_availability_and_category_path(is_active, stock
 def test_product_detail_serializer_related_products_filtering():
     cat = Category.objects.create(name="Cat", slug="cat")
     main = Product.objects.create(
-        name="Main", sku="MAIN-1", price=Decimal("50.00"), category=cat, stock_quantity=5
+        name="Main",
+        sku="MAIN-1",
+        price=Decimal("50.00"),
+        category=cat,
+        stock_quantity=5,
     )
     rel1 = Product.objects.create(
-        name="Rel 1", sku="REL-1", price=Decimal("60.00"), category=cat, stock_quantity=5
+        name="Rel 1",
+        sku="REL-1",
+        price=Decimal("60.00"),
+        category=cat,
+        stock_quantity=5,
     )
     Product.objects.create(
-        name="Rel 2", sku="REL-2", price=Decimal("70.00"), category=cat, stock_quantity=5, is_active=False
+        name="Rel 2",
+        sku="REL-2",
+        price=Decimal("70.00"),
+        category=cat,
+        stock_quantity=5,
+        is_active=False,
     )
 
     data = ProductDetailSerializer(main).data
