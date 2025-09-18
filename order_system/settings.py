@@ -246,7 +246,7 @@ REST_FRAMEWORK = {
 AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME', 'sandbox')
 AFRICASTALKING_API_KEY = os.environ.get('AFRICASTALKING_API_KEY', '')
 AFRICASTALKING_SENDER_ID = os.environ.get(
-    'AFRICASTALKING_SENDER_ID', 'OrderSys')
+    'AFRICASTALKING_SENDER_ID', 'ORDERSYS')
 
 # Celery Configuration for Background Tasks
 CELERY_BROKER_URL = os.environ.get(
