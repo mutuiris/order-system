@@ -9,30 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_order_system
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
+    permissions:
+      contents: read
+      id-token: write
 
     strategy:
       matrix:
@@ -70,45 +49,42 @@ jobs:
         run: |
           echo "SECRET_KEY=test-secret-key-for-ci" >> $GITHUB_ENV
           echo "DEBUG=False" >> $GITHUB_ENV
-          echo "DB_NAME=test_order_system" >> $GITHUB_ENV
-          echo "DB_USER=postgres" >> $GITHUB_ENV
-          echo "DB_PASSWORD=postgres" >> $GITHUB_ENV
-          echo "DB_HOST=localhost" >> $GITHUB_ENV
-          echo "DB_PORT=5432" >> $GITHUB_ENV
-          echo "CELERY_BROKER_URL=redis://localhost:6379/0" >> $GITHUB_ENV
+          echo "DJANGO_SETTINGS_MODULE=order_system.test_settings" >> $GITHUB_ENV
           echo "AFRICASTALKING_USERNAME=sandbox" >> $GITHUB_ENV
           echo "AFRICASTALKING_API_KEY=test-key" >> $GITHUB_ENV
 
-      - name: Run migrations
+      - name: Run migrations (sqlite)
         run: |
-          python manage.py migrate
+          python manage.py migrate --noinput --settings=order_system.test_settings --run-syncdb
 
       - name: Run tests with coverage
         run: |
-          pytest --cov=. --cov-report=xml --cov-report=term-missing --cov-fail-under=80
+          pytest --cov=. --cov-report=xml --cov-report=term-missing --cov-fail-under=80 --ds=order_system.test_settings
 
-      - name: Upload coverage to Codecov
+      - name: Upload coverage to Codecov (CI)
+        if: ${{ !env.ACT }}
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
+          use_oidc: true
           fail_ci_if_error: false
+
+      - name: Skip Codecov upload (local act)
+        if: ${{ env.ACT }}
+        run: echo "Skipping Codecov upload when running under nektos/act"
 
   lint:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v5
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-
       - name: Install linting dependencies
         run: |
           python -m pip install --upgrade pip
           pip install black
-
       - name: Run Black (code formatting)
         run: |
           black --check --diff .
