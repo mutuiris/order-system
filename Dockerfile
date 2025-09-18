@@ -23,21 +23,15 @@ RUN pip install -r requirements.txt
 # Copy project files
 COPY --chown=django:django . .
 
-# Create static files directory
-RUN mkdir -p staticfiles && chown django:django staticfiles
+RUN mkdir -p staticfiles media && chown -R django:django staticfiles media
 
-# Switch to non-root user
 USER django
 
-# Collect static files
-RUN python manage.py collectstatic --noinput
-
-# Expose port
-EXPOSE 8000
+EXPOSE $PORT
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
     CMD python manage.py check || exit 1
 
-# Run application with full path
-CMD ["python", "-m", "gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "order_system.wsgi:application"]
+# Updated CMD to use $PORT and include migrations
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:$PORT --workers 2 order_system.wsgi:application"]
