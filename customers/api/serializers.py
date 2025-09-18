@@ -1,5 +1,6 @@
-from rest_framework import serializers
 from django.contrib.auth.models import User
+from rest_framework import serializers
+
 from ..models import Customer
 
 
@@ -10,9 +11,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:  # type: ignore
         model = User
-        fields = ['id', 'username', 'email',
-                  'first_name', 'last_name', 'date_joined']
-        read_only_fields = ['id', 'username', 'date_joined']
+        fields = ["id", "username", "email", "first_name", "last_name", "date_joined"]
+        read_only_fields = ["id", "username", "date_joined"]
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -27,10 +27,16 @@ class CustomerSerializer(serializers.ModelSerializer):
     class Meta:  # type: ignore
         model = Customer
         fields = [
-            'id', 'user', 'phone_number', 'full_name',
-            'email', 'is_active', 'created_at', 'updated_at'
+            "id",
+            "user",
+            "phone_number",
+            "full_name",
+            "email",
+            "is_active",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class CustomerUpdateSerializer(serializers.ModelSerializer):
@@ -39,16 +45,16 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
     Allows updating both user and customer fields
     """
 
-    first_name = serializers.CharField(source='user.first_name', max_length=30)
-    last_name = serializers.CharField(source='user.last_name', max_length=30)
+    first_name = serializers.CharField(source="user.first_name", max_length=30)
+    last_name = serializers.CharField(source="user.last_name", max_length=30)
 
     class Meta:  # type: ignore
         model = Customer
-        fields = ['phone_number', 'first_name', 'last_name']
+        fields = ["phone_number", "first_name", "last_name"]
 
     def update(self, instance, validated_data):
         """Update both User and Customer fields"""
-        user_data = validated_data.pop('user', {})
+        user_data = validated_data.pop("user", {})
 
         # Update user fields
         for attr, value in user_data.items():
@@ -70,17 +76,17 @@ class AuthTokenSerializer(serializers.Serializer):
     """
 
     access_token = serializers.CharField()
-    token_type = serializers.CharField(default='Bearer')
+    token_type = serializers.CharField(default="Bearer")
     expires_in = serializers.IntegerField()
     user = CustomerSerializer()
 
     def to_representation(self, instance):
         """Format authentication response"""
         return {
-            'access_token': instance['access_token'],
-            'token_type': instance.get('token_type', 'Bearer'),
-            'expires_in': instance['expires_in'],
-            'user': instance['user']
+            "access_token": instance["access_token"],
+            "token_type": instance.get("token_type", "Bearer"),
+            "expires_in": instance["expires_in"],
+            "user": instance["user"],
         }
 
 

@@ -1,25 +1,27 @@
 """
 Test data factories for customers
 """
+
 import factory
 import factory.django
-from factory.declarations import Sequence, LazyAttribute, SubFactory
-from factory.faker import Faker
-from factory.helpers import post_generation, lazy_attribute
 from django.contrib.auth.models import User
+from factory.declarations import LazyAttribute, Sequence, SubFactory
+from factory.faker import Faker
+from factory.helpers import lazy_attribute, post_generation
+
 from customers.models import Customer
 
 
 class UserFactory(factory.django.DjangoModelFactory):
     """Factory for creating User instances"""
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         model = User
 
-    username = Sequence(lambda n: f'user{n}')
-    email = LazyAttribute(lambda obj: f'{obj.username}@example.com')
-    first_name = Faker('first_name')
-    last_name = Faker('last_name')
+    username = Sequence(lambda n: f"user{n}")
+    email = LazyAttribute(lambda obj: f"{obj.username}@example.com")
+    first_name = Faker("first_name")
+    last_name = Faker("last_name")
     is_active = True
     is_staff = False
     is_superuser = False
@@ -30,9 +32,9 @@ class UserFactory(factory.django.DjangoModelFactory):
         if not create:
             return
 
-        password = extracted or 'testpass123'
-        obj.set_password(password) # type: ignore
-        obj.save() # type: ignore
+        password = extracted or "testpass123"
+        obj.set_password(password)  # type: ignore
+        obj.save()  # type: ignore
 
 
 class AdminUserFactory(UserFactory):
@@ -40,14 +42,14 @@ class AdminUserFactory(UserFactory):
 
     is_staff = True
     is_superuser = True
-    username = Sequence(lambda n: f'admin{n}')
-    email = LazyAttribute(lambda obj: f'{obj.username}@admin.example.com')
+    username = Sequence(lambda n: f"admin{n}")
+    email = LazyAttribute(lambda obj: f"{obj.username}@admin.example.com")
 
 
 class CustomerFactory(factory.django.DjangoModelFactory):
     """Factory for creating Customer instances"""
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         model = Customer
 
     user = SubFactory(UserFactory)
@@ -57,7 +59,8 @@ class CustomerFactory(factory.django.DjangoModelFactory):
     def phone_number(self):
         """Generate Kenyan phone number format"""
         import random
-        return f'+2547{random.randint(10000000, 99999999)}'
+
+        return f"+2547{random.randint(10000000, 99999999)}"
 
 
 class InactiveCustomerFactory(CustomerFactory):
@@ -74,8 +77,15 @@ def create_user_with_customer(username=None, email=None, phone_number=None, **kw
     user_kwargs = {}
     customer_kwargs = {}
 
-    user_fields = {'username', 'email', 'first_name',
-                   'last_name', 'is_active', 'is_staff', 'is_superuser'}
+    user_fields = {
+        "username",
+        "email",
+        "first_name",
+        "last_name",
+        "is_active",
+        "is_staff",
+        "is_superuser",
+    }
 
     for key, value in kwargs.items():
         if key in user_fields:
@@ -84,11 +94,11 @@ def create_user_with_customer(username=None, email=None, phone_number=None, **kw
             customer_kwargs[key] = value
 
     if username:
-        user_kwargs['username'] = username
+        user_kwargs["username"] = username
     if email:
-        user_kwargs['email'] = email
+        user_kwargs["email"] = email
     if phone_number:
-        customer_kwargs['phone_number'] = phone_number
+        customer_kwargs["phone_number"] = phone_number
 
     # Create user
     user = UserFactory(**user_kwargs)
@@ -107,7 +117,7 @@ def create_multiple_customers(count=5, **kwargs):
 
     for i in range(count):
         customer_kwargs = kwargs.copy()
-        customer_kwargs.setdefault('username', f'testuser{i}')
+        customer_kwargs.setdefault("username", f"testuser{i}")
 
         user, customer = create_user_with_customer(**customer_kwargs)
         customers.append((user, customer))
@@ -122,6 +132,7 @@ def create_authenticated_user(username=None, email=None):
     user, customer = create_user_with_customer(username=username, email=email)
 
     from order_system.authentication import generate_jwt_token
+
     token = generate_jwt_token(user)
 
     return user, customer, token
@@ -153,33 +164,27 @@ class CustomerTestDataBuilder:
 
     def with_name(self, first_name, last_name):
         """Set customer name"""
-        self.user_data.update({
-            'first_name': first_name,
-            'last_name': last_name
-        })
+        self.user_data.update({"first_name": first_name, "last_name": last_name})
         return self
 
     def with_email(self, email):
         """Set customer email"""
-        self.user_data['email'] = email
+        self.user_data["email"] = email
         return self
 
     def with_phone(self, phone_number):
         """Set customer phone number"""
-        self.customer_data['phone_number'] = phone_number
+        self.customer_data["phone_number"] = phone_number
         return self
 
     def inactive(self):
         """Make customer inactive"""
-        self.customer_data['is_active'] = False
+        self.customer_data["is_active"] = False
         return self
 
     def admin(self):
         """Make user admin"""
-        self.user_data.update({
-            'is_staff': True,
-            'is_superuser': True
-        })
+        self.user_data.update({"is_staff": True, "is_superuser": True})
         return self
 
     def build(self):
@@ -192,54 +197,46 @@ class CustomerTestDataBuilder:
 def create_oauth_user_data():
     """Create mock OAuth user data for testing"""
     return {
-        'username': 'oauthuser',
-        'email': 'oauth@google.com',
-        'first_name': 'OAuth',
-        'last_name': 'User',
-        'provider': 'google-oauth2',
-        'uid': '123456789',
+        "username": "oauthuser",
+        "email": "oauth@google.com",
+        "first_name": "OAuth",
+        "last_name": "User",
+        "provider": "google-oauth2",
+        "uid": "123456789",
     }
 
 
 def create_jwt_test_data():
     """Create test data for JWT authentication tests"""
     user, customer = create_user_with_customer(
-        username='jwtuser',
-        email='jwt@example.com',
-        first_name='JWT',
-        last_name='User'
+        username="jwtuser", email="jwt@example.com", first_name="JWT", last_name="User"
     )
 
     from order_system.authentication import generate_jwt_token
+
     token = generate_jwt_token(user)
 
     return {
-        'user': user,
-        'customer': customer,
-        'token': token,
-        'auth_header': f'Bearer {token}'
+        "user": user,
+        "customer": customer,
+        "token": token,
+        "auth_header": f"Bearer {token}",
     }
 
 
 def create_customer_update_test_data():
     """Create test data for customer update scenarios"""
     user, customer = create_user_with_customer(
-        first_name='Original',
-        last_name='Name',
-        phone_number='+254700123456'
+        first_name="Original", last_name="Name", phone_number="+254700123456"
     )
 
     update_data = {
-        'first_name': 'Updated',
-        'last_name': 'Name',
-        'phone_number': '+254700999888'
+        "first_name": "Updated",
+        "last_name": "Name",
+        "phone_number": "+254700999888",
     }
 
-    return {
-        'user': user,
-        'customer': customer,
-        'update_data': update_data
-    }
+    return {"user": user, "customer": customer, "update_data": update_data}
 
 
 def create_bulk_customers(count=100):

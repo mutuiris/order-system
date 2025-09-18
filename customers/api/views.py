@@ -1,23 +1,25 @@
-from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.response import Response
-from django.shortcuts import redirect
+import logging
+
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.shortcuts import redirect
 from django.urls import reverse
-from social_django.utils import psa
-from social_core.backends.google import GoogleOAuth2
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import NotAuthenticated
-import logging
+from rest_framework.response import Response
+from social_core.backends.google import GoogleOAuth2
+from social_django.utils import psa
+
+from order_system.authentication import generate_jwt_token
 
 from ..models import Customer
 from .serializers import (
+    AuthCallbackSerializer,
+    AuthTokenSerializer,
     CustomerSerializer,
     CustomerUpdateSerializer,
-    AuthTokenSerializer,
-    AuthCallbackSerializer
 )
-from order_system.authentication import generate_jwt_token
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     """
     ViewSet for customer profile management
     """
+
     serializer_class = CustomerSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -33,58 +36,53 @@ class CustomerViewSet(viewsets.ModelViewSet):
         """Return only the authenticated user's customer profile"""
         user = self.request.user
         if not user.is_authenticated:
-            raise NotAuthenticated(
-                "Authentication credentials were not provided.")
+            raise NotAuthenticated("Authentication credentials were not provided.")
 
-        customer_profile = getattr(user, 'customer_profile', None)
+        customer_profile = getattr(user, "customer_profile", None)
         if customer_profile is not None:
             return Customer.objects.filter(id=customer_profile.id)
         return Customer.objects.none()
 
     def get_serializer_class(self):
         """Use different serializers for different actions"""
-        if self.action in ['update', 'partial_update']:
+        if self.action in ["update", "partial_update"]:
             return CustomerUpdateSerializer
         return CustomerSerializer
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def me(self, request):
         """
         Get current user profile information
         """
         if not request.user.is_authenticated:
-            raise NotAuthenticated(
-                "Authentication credentials were not provided.")
+            raise NotAuthenticated("Authentication credentials were not provided.")
 
-        if not hasattr(request.user, 'customer_profile'):
+        if not hasattr(request.user, "customer_profile"):
             return Response(
-                {'error': 'Customer profile not found'},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Customer profile not found"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         serializer = CustomerSerializer(request.user.customer_profile)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['put', 'patch'])
+    @action(detail=False, methods=["put", "patch"])
     def update_profile(self, request):
         """
         Update current user profile information
         """
         if not request.user.is_authenticated:
-            raise NotAuthenticated(
-                "Authentication credentials were not provided.")
+            raise NotAuthenticated("Authentication credentials were not provided.")
 
-        if not hasattr(request.user, 'customer_profile'):
+        if not hasattr(request.user, "customer_profile"):
             return Response(
-                {'error': 'Customer profile not found'},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Customer profile not found"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         customer = request.user.customer_profile
         serializer = CustomerUpdateSerializer(
-            customer,
-            data=request.data,
-            partial=request.method == 'PATCH'
+            customer, data=request.data, partial=request.method == "PATCH"
         )
 
         if serializer.is_valid():
@@ -95,7 +93,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 def auth_login(request):
     """
@@ -103,24 +101,28 @@ def auth_login(request):
     """
     # Build the Google OAuth2 URL
     google_login_url = request.build_absolute_uri(
-        reverse('social:begin', args=['google-oauth2']))
+        reverse("social:begin", args=["google-oauth2"])
+    )
 
     # Add state parameter for security
     import uuid
+
     state = str(uuid.uuid4())
-    request.session['oauth_state'] = state
+    request.session["oauth_state"] = state
 
-    return Response({
-        'login_url': f"{google_login_url}?state={state}",
-        'provider': 'google-oauth2',
-        'message': 'Visit the login_url to authenticate with Google',
-        'state': state
-    })
+    return Response(
+        {
+            "login_url": f"{google_login_url}?state={state}",
+            "provider": "google-oauth2",
+            "message": "Visit the login_url to authenticate with Google",
+            "state": state,
+        }
+    )
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([permissions.AllowAny])
-@psa('social:complete')
+@psa("social:complete")
 def auth_callback(request, backend):
     """
     Handle OAuth2 callback from Google with proper validation
@@ -130,61 +132,61 @@ def auth_callback(request, backend):
         serializer = AuthCallbackSerializer(data=request.GET)
         if not serializer.is_valid():
             return Response(
-                {'error': 'Invalid callback parameters',
-                    'details': serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid callback parameters", "details": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Check if user is authenticated through OAuth
-        if not hasattr(request, 'backend'):
+        if not hasattr(request, "backend"):
             return Response(
-                {'error': 'OAuth backend not properly configured'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "OAuth backend not properly configured"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         # Perform OAuth authentication
-        user = request.backend.do_auth(serializer.validated_data['code'])
+        user = request.backend.do_auth(serializer.validated_data["code"])
 
         if not user:
             return Response(
-                {'error': 'OAuth authentication failed'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "OAuth authentication failed"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Ensure customer profile exists
         customer, created = Customer.objects.get_or_create(
-            user=user,
-            defaults={'phone_number': '+254700000000'}
+            user=user, defaults={"phone_number": "+254700000000"}
         )
 
         customer_serializer = CustomerSerializer(customer)
 
         # Generate structured token response
         token_data = {
-            'access_token': generate_jwt_token(user),
-            'token_type': 'Bearer',
-            'expires_in': 86400,
-            'user': customer_serializer.data
+            "access_token": generate_jwt_token(user),
+            "token_type": "Bearer",
+            "expires_in": 86400,
+            "user": customer_serializer.data,
         }
 
         token_serializer = AuthTokenSerializer(token_data)
 
-        return Response({
-            'success': True,
-            'message': 'OAuth authentication successful',
-            'auth_data': token_serializer.data,
-            'new_user': created
-        })
+        return Response(
+            {
+                "success": True,
+                "message": "OAuth authentication successful",
+                "auth_data": token_serializer.data,
+                "new_user": created,
+            }
+        )
 
     except Exception as e:
         logger.error(f"OAuth callback error: {str(e)}")
         return Response(
-            {'error': f'Authentication failed: {str(e)}'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": f"Authentication failed: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([permissions.AllowAny])
 def auth_success(request):
     """
@@ -194,8 +196,7 @@ def auth_success(request):
         try:
             # Ensure customer profile exists
             customer, created = Customer.objects.get_or_create(
-                user=request.user,
-                defaults={'phone_number': '+254700000000'}
+                user=request.user, defaults={"phone_number": "+254700000000"}
             )
 
             # Generate JWT token
@@ -203,34 +204,35 @@ def auth_success(request):
 
             customer_serializer = CustomerSerializer(customer)
             token_data = {
-                'access_token': token,
-                'token_type': 'Bearer',
-                'expires_in': 86400,
-                'user': customer_serializer.data
+                "access_token": token,
+                "token_type": "Bearer",
+                "expires_in": 86400,
+                "user": customer_serializer.data,
             }
 
             serializer = AuthTokenSerializer(token_data)
 
-            return Response({
-                'success': True,
-                'message': 'Authentication successful',
-                'auth_data': serializer.data
-            })
+            return Response(
+                {
+                    "success": True,
+                    "message": "Authentication successful",
+                    "auth_data": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Auth success error: {str(e)}")
             return Response(
-                {'error': 'Token generation failed'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "Token generation failed"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
     return Response(
-        {'error': 'Authentication required'},
-        status=status.HTTP_401_UNAUTHORIZED
+        {"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED
     )
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def auth_logout(request):
     """
@@ -241,19 +243,15 @@ def auth_logout(request):
 
     try:
         logout(request)
-        return Response({
-            'success': True,
-            'message': 'Successfully logged out'
-        })
+        return Response({"success": True, "message": "Successfully logged out"})
     except Exception as e:
         logger.error(f"Logout error: {str(e)}")
         return Response(
-            {'error': 'Logout failed'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {"error": "Logout failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def auth_status(request):
     """
@@ -262,29 +260,33 @@ def auth_status(request):
     if not request.user.is_authenticated:
         raise NotAuthenticated("Authentication credentials were not provided.")
 
-    if hasattr(request.user, 'customer_profile'):
+    if hasattr(request.user, "customer_profile"):
         customer_data = CustomerSerializer(request.user.customer_profile).data
-        return Response({
-            'authenticated': True,
-            'user': customer_data,
-            'permissions': {
-                'can_place_orders': True,
-                'can_view_orders': True,
-                'can_update_profile': True
+        return Response(
+            {
+                "authenticated": True,
+                "user": customer_data,
+                "permissions": {
+                    "can_place_orders": True,
+                    "can_view_orders": True,
+                    "can_update_profile": True,
+                },
             }
-        })
+        )
 
-    return Response({
-        'authenticated': True,
-        'user': {
-            'id': request.user.id,
-            'email': request.user.email,
-            'name': request.user.get_full_name()
-        },
-        'error': 'Customer profile not found',
-        'permissions': {
-            'can_place_orders': False,
-            'can_view_orders': False,
-            'can_update_profile': False
+    return Response(
+        {
+            "authenticated": True,
+            "user": {
+                "id": request.user.id,
+                "email": request.user.email,
+                "name": request.user.get_full_name(),
+            },
+            "error": "Customer profile not found",
+            "permissions": {
+                "can_place_orders": False,
+                "can_view_orders": False,
+                "can_update_profile": False,
+            },
         }
-    })
+    )

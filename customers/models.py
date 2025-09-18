@@ -2,8 +2,8 @@
 Customer models for order system
 """
 
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
 
 
 class Customer(models.Model):
@@ -14,21 +14,17 @@ class Customer(models.Model):
 
     # Link to Django's User model
     user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name='customer_profile'
+        User, on_delete=models.CASCADE, related_name="customer_profile"
     )
 
     # Customer contact informatiom
     phone_number = models.CharField(
-        max_length=20,
-        help_text="Phone number for SMS notifications"
+        max_length=20, help_text="Phone number for SMS notifications"
     )
 
     # Customer preferences
     is_active = models.BooleanField(
-        default=True,
-        help_text="Checks whether this customer account is active"
+        default=True, help_text="Checks whether this customer account is active"
     )
 
     # Timestamps
@@ -36,9 +32,9 @@ class Customer(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-created_at']
-        verbose_name = 'Customer'
-        verbose_name_plural = 'Customers'
+        ordering = ["-created_at"]
+        verbose_name = "Customer"
+        verbose_name_plural = "Customers"
 
     def __str__(self):
         """String representation for debugging and admin interface"""

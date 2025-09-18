@@ -1,7 +1,8 @@
-from django.db import models
-from django.core.validators import MinValueValidator
 from decimal import Decimal
 from typing import TYPE_CHECKING, List
+
+from django.core.validators import MinValueValidator
+from django.db import models
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -18,16 +19,12 @@ class Category(models.Model):
 
     # Self referencing foreign key for hierarchy
     parent = models.ForeignKey(
-        'self',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='children'
+        "self", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
 
     # Type hints for Pylance
     if TYPE_CHECKING:
-        children: 'QuerySet[Category]'
+        children: "QuerySet[Category]"
         id: int
 
     # Denormalized field to optimize queries
@@ -41,10 +38,10 @@ class Category(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['name']
-        verbose_name = 'Category'
-        verbose_name_plural = 'Categories'
-        unique_together = [['parent', 'name']]
+        ordering = ["name"]
+        verbose_name = "Category"
+        verbose_name_plural = "Categories"
+        unique_together = [["parent", "name"]]
 
     def __str__(self):
         """Show full category path for clarity"""
@@ -53,21 +50,24 @@ class Category(models.Model):
     def save(self, *args, **kwargs):
         """Auto calculate level based on parent hierarchy with preemptive uniqueness checks"""
         from django.db.utils import IntegrityError as DBIntegrityError
+
         # Capture previous level for existing records
         old_level = None
         if self.pk:
             try:
-                old_level = Category.objects.only('level').get(pk=self.pk).level
+                old_level = Category.objects.only("level").get(pk=self.pk).level
             except Category.DoesNotExist:
                 old_level = None
 
         if not self.pk:
             if Category.objects.filter(slug=self.slug).exists():
                 raise DBIntegrityError(
-                    'UNIQUE constraint failed: products_category.slug')
+                    "UNIQUE constraint failed: products_category.slug"
+                )
             if Category.objects.filter(parent=self.parent, name=self.name).exists():
                 raise DBIntegrityError(
-                    'UNIQUE constraint failed: products_category.parent, name')
+                    "UNIQUE constraint failed: products_category.parent, name"
+                )
 
         # Calculate level
         if self.parent:
@@ -79,7 +79,7 @@ class Category(models.Model):
 
         if old_level is not None and old_level != self.level:
             level_diff = self.level - old_level
-            self.children.update(level=models.F('level') + level_diff)
+            self.children.update(level=models.F("level") + level_diff)
 
     def get_full_path(self):
         """Get complete path from root to this category"""
@@ -92,16 +92,18 @@ class Category(models.Model):
             current = current.parent
         if current and current.id in visited:
             path.append(f"[CIRCULAR: {current.name}]")
-        return ' > '.join(reversed(path))
+        return " > ".join(reversed(path))
 
     def get_descendants(self):
         """Get all subcategories recursively with circular reference protection"""
-        descendants: List['Category'] = []
+        descendants: List["Category"] = []
         visited: set[int] = set()
         self._collect_descendants(descendants, visited)
         return descendants
 
-    def _collect_descendants(self, descendants: List['Category'], visited: set[int]) -> None:
+    def _collect_descendants(
+        self, descendants: List["Category"], visited: set[int]
+    ) -> None:
         """Recursively collect descendants with cycle detection"""
         if self.id in visited:
             return
@@ -125,7 +127,7 @@ class Category(models.Model):
         if current and current.id in visited:
             path.append(f"[CIRCULAR: {current.name}]")
 
-        return ' > '.join(reversed(path))
+        return " > ".join(reversed(path))
 
     @property
     def is_leaf(self):
@@ -146,21 +148,17 @@ class Product(models.Model):
     sku = models.CharField(
         max_length=50,
         unique=True,
-        help_text="Unique product identifier for inventory tracking"
+        help_text="Unique product identifier for inventory tracking",
     )
 
     # Use DecimalField for money
     price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.01'))]
+        max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
     )
 
     # Link to category hierarchy
     category = models.ForeignKey(
-        Category,
-        on_delete=models.PROTECT,
-        related_name='products'
+        Category, on_delete=models.PROTECT, related_name="products"
     )
 
     # Inventory management
@@ -168,17 +166,16 @@ class Product(models.Model):
 
     # Product status
     is_active = models.BooleanField(
-        default=True,
-        help_text="Designates whether this product is available for sale"
+        default=True, help_text="Designates whether this product is available for sale"
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['category', 'name']
-        verbose_name = 'Product'
-        verbose_name_plural = 'Products'
+        ordering = ["category", "name"]
+        verbose_name = "Product"
+        verbose_name_plural = "Products"
 
     def __str__(self):
         return f"{self.name} ({self.sku})"

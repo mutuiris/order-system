@@ -1,21 +1,23 @@
 """
 Tests for authentication system including JWT and OAuth flows
 """
+
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional, Tuple
+from unittest.mock import Mock, patch
+
 import jwt
 import pytest
-from unittest.mock import Mock, patch
-from datetime import datetime, timedelta, timezone
-from django.test import TestCase
-from django.contrib.auth.models import User
 from django.conf import settings
+from django.contrib.auth.models import User
+from django.test import TestCase
 from rest_framework import status
-from rest_framework.test import APITestCase
 from rest_framework.exceptions import AuthenticationFailed
-from typing import Optional, Tuple, Any, Dict
+from rest_framework.test import APITestCase
 
 from customers.models import Customer
-from order_system.authentication import JWTAuthentication, generate_jwt_token
 from order_system.auth_pipeline import create_customer_profile
+from order_system.authentication import JWTAuthentication, generate_jwt_token
 
 
 class JWTAuthenticationTest(TestCase):
@@ -24,9 +26,7 @@ class JWTAuthenticationTest(TestCase):
     def setUp(self):
         """Set up test data"""
         self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            username="testuser", email="test@example.com", password="testpass123"
         )
 
         self.auth = JWTAuthentication()
@@ -39,26 +39,25 @@ class JWTAuthenticationTest(TestCase):
         self.assertTrue(len(token) > 0)
 
         # Decode and verify token content
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
 
-        self.assertEqual(payload['user_id'], self.user.pk)
-        self.assertEqual(payload['email'], self.user.email)
-        self.assertIn('exp', payload)
-        self.assertIn('iat', payload)
+        self.assertEqual(payload["user_id"], self.user.pk)
+        self.assertEqual(payload["email"], self.user.email)
+        self.assertIn("exp", payload)
+        self.assertIn("iat", payload)
 
     def test_jwt_token_expiration(self):
         """Test JWT token expiration time"""
         token = generate_jwt_token(self.user)
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
 
-        exp_time = datetime.fromtimestamp(payload['exp'], timezone.utc)
-        iat_time = datetime.fromtimestamp(payload['iat'], timezone.utc)
+        exp_time = datetime.fromtimestamp(payload["exp"], timezone.utc)
+        iat_time = datetime.fromtimestamp(payload["iat"], timezone.utc)
 
         expected_duration = timedelta(hours=24)
         actual_duration = exp_time - iat_time
 
-        self.assertLess(
-            abs(actual_duration - expected_duration).total_seconds(), 60)
+        self.assertLess(abs(actual_duration - expected_duration).total_seconds(), 60)
 
     def test_jwt_authentication_valid_token(self):
         """Test authentication with valid JWT token"""
@@ -66,7 +65,7 @@ class JWTAuthenticationTest(TestCase):
 
         # Create mock request with Bearer token
         mock_request = Mock()
-        mock_request.META = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+        mock_request.META = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
         auth_result = self.auth.authenticate(mock_request)
         self.assertIsNotNone(auth_result)
@@ -90,7 +89,7 @@ class JWTAuthenticationTest(TestCase):
     def test_jwt_authentication_invalid_header_format(self):
         """Test authentication with invalid header format"""
         mock_request = Mock()
-        mock_request.META = {'HTTP_AUTHORIZATION': 'InvalidFormat token'}
+        mock_request.META = {"HTTP_AUTHORIZATION": "InvalidFormat token"}
 
         result = self.auth.authenticate(mock_request)
 
@@ -99,76 +98,76 @@ class JWTAuthenticationTest(TestCase):
     def test_jwt_authentication_no_token(self):
         """Test authentication with Bearer but no token"""
         mock_request = Mock()
-        mock_request.META = {'HTTP_AUTHORIZATION': 'Bearer'}
+        mock_request.META = {"HTTP_AUTHORIZATION": "Bearer"}
 
         with self.assertRaises(AuthenticationFailed) as context:
             self.auth.authenticate(mock_request)
 
         self.assertIn(
-            'Token string should not contain invalid characters', str(context.exception))
+            "Token string should not contain invalid characters", str(context.exception)
+        )
 
     def test_jwt_authentication_multiple_tokens(self):
         """Test authentication with multiple tokens in header"""
         mock_request = Mock()
-        mock_request.META = {'HTTP_AUTHORIZATION': 'Bearer token1 token2'}
+        mock_request.META = {"HTTP_AUTHORIZATION": "Bearer token1 token2"}
 
         with self.assertRaises(AuthenticationFailed) as context:
             self.auth.authenticate(mock_request)
 
-        self.assertIn('Token string should not contain spaces',
-                      str(context.exception))
+        self.assertIn("Token string should not contain spaces", str(context.exception))
 
     def test_jwt_authentication_expired_token(self):
         """Test authentication with expired token"""
         expired_payload = {
-            'user_id': self.user.pk,
-            'email': self.user.email,
-            'exp': datetime.now(timezone.utc) - timedelta(hours=1),
-            'iat': datetime.now(timezone.utc) - timedelta(hours=25),
+            "user_id": self.user.pk,
+            "email": self.user.email,
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
+            "iat": datetime.now(timezone.utc) - timedelta(hours=25),
         }
 
         expired_token = jwt.encode(
-            expired_payload, settings.SECRET_KEY, algorithm='HS256')
+            expired_payload, settings.SECRET_KEY, algorithm="HS256"
+        )
 
         mock_request = Mock()
-        mock_request.META = {'HTTP_AUTHORIZATION': f'Bearer {expired_token}'}
+        mock_request.META = {"HTTP_AUTHORIZATION": f"Bearer {expired_token}"}
 
         with self.assertRaises(AuthenticationFailed) as context:
             self.auth.authenticate(mock_request)
 
-        self.assertIn('Token has expired', str(context.exception))
+        self.assertIn("Token has expired", str(context.exception))
 
     def test_jwt_authentication_invalid_token(self):
         """Test authentication with invalid token signature"""
-        invalid_token = 'invalid.token.signature'
+        invalid_token = "invalid.token.signature"
 
         mock_request = Mock()
-        mock_request.META = {'HTTP_AUTHORIZATION': f'Bearer {invalid_token}'}
+        mock_request.META = {"HTTP_AUTHORIZATION": f"Bearer {invalid_token}"}
 
         with self.assertRaises(AuthenticationFailed) as context:
             self.auth.authenticate(mock_request)
 
-        self.assertIn('Error decoding token', str(context.exception))
+        self.assertIn("Error decoding token", str(context.exception))
 
     def test_jwt_authentication_nonexistent_user(self):
         """Test authentication with token for non existent user"""
         payload = {
-            'user_id': 99999,
-            'email': 'nonexistent@example.com',
-            'exp': datetime.now(timezone.utc) + timedelta(hours=24),
-            'iat': datetime.now(timezone.utc),
+            "user_id": 99999,
+            "email": "nonexistent@example.com",
+            "exp": datetime.now(timezone.utc) + timedelta(hours=24),
+            "iat": datetime.now(timezone.utc),
         }
 
-        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
         mock_request = Mock()
-        mock_request.META = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+        mock_request.META = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
         with self.assertRaises(AuthenticationFailed) as context:
             self.auth.authenticate(mock_request)
 
-        self.assertIn('No user matching this token was found',
-                      str(context.exception))
+        self.assertIn("No user matching this token was found", str(context.exception))
 
     def test_jwt_authentication_inactive_user(self):
         """Test authentication with token for inactive user"""
@@ -179,12 +178,12 @@ class JWTAuthenticationTest(TestCase):
         token = generate_jwt_token(self.user)
 
         mock_request = Mock()
-        mock_request.META = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+        mock_request.META = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
         with self.assertRaises(AuthenticationFailed) as context:
             self.auth.authenticate(mock_request)
 
-        self.assertIn('This user has been deactivated', str(context.exception))
+        self.assertIn("This user has been deactivated", str(context.exception))
 
     def test_get_user_from_token_valid(self):
         """Test extracting user info from valid token"""
@@ -194,16 +193,16 @@ class JWTAuthenticationTest(TestCase):
 
         self.assertIsNotNone(user_info)
         if user_info is not None:
-            self.assertEqual(user_info['user_id'], self.user.pk)
-            self.assertEqual(user_info['email'], self.user.email)
-            self.assertIn('exp', user_info)
-            self.assertIn('iat', user_info)
+            self.assertEqual(user_info["user_id"], self.user.pk)
+            self.assertEqual(user_info["email"], self.user.email)
+            self.assertIn("exp", user_info)
+            self.assertIn("iat", user_info)
         else:
             self.fail("Token parsing should have succeeded")
 
     def test_get_user_from_token_invalid(self):
         """Test extracting user info from invalid token"""
-        invalid_token = 'invalid.token.signature'
+        invalid_token = "invalid.token.signature"
 
         user_info = JWTAuthentication.get_user_from_token(invalid_token)
 
@@ -216,67 +215,58 @@ class OAuthPipelineTest(TestCase):
     def setUp(self):
         """Set up test data"""
         self.user = User.objects.create_user(
-            username='oauthuser',
-            email='oauth@example.com',
-            password='testpass123'
+            username="oauthuser", email="oauth@example.com", password="testpass123"
         )
 
     def test_create_customer_profile_new_user(self):
         """Test creating customer profile for new OAuth user"""
         # Ensure user has no customer profile
-        self.assertFalse(hasattr(self.user, 'customer_profile'))
+        self.assertFalse(hasattr(self.user, "customer_profile"))
 
         # Mock strategy and details
         strategy = Mock()
-        details = {'phone_number': '+254700123456'}
+        details = {"phone_number": "+254700123456"}
 
         result = create_customer_profile(
-            strategy=strategy,
-            details=details,
-            user=self.user
+            strategy=strategy, details=details, user=self.user
         )
 
-        self.assertEqual(result['user'], self.user)
+        self.assertEqual(result["user"], self.user)
 
         # Check customer profile was created
         self.user.refresh_from_db()
-        self.assertTrue(hasattr(self.user, 'customer_profile'))
+        self.assertTrue(hasattr(self.user, "customer_profile"))
 
-        customer_profile = getattr(self.user, 'customer_profile', None)
+        customer_profile = getattr(self.user, "customer_profile", None)
         self.assertIsNotNone(customer_profile)
         if customer_profile is not None:
-            self.assertEqual(customer_profile.phone_number, '+254700123456')
+            self.assertEqual(customer_profile.phone_number, "+254700123456")
         else:
             self.fail("Customer profile should have been created")
 
     def test_create_customer_profile_existing_profile(self):
         """Test pipeline with user who already has customer profile"""
         # Create existing customer profile
-        Customer.objects.create(
-            user=self.user,
-            phone_number='+254700999888'
-        )
+        Customer.objects.create(user=self.user, phone_number="+254700999888")
 
         strategy = Mock()
-        details = {'phone_number': '+254700123456'}
+        details = {"phone_number": "+254700123456"}
 
         result = create_customer_profile(
-            strategy=strategy,
-            details=details,
-            user=self.user
+            strategy=strategy, details=details, user=self.user
         )
 
-        self.assertEqual(result['user'], self.user)
+        self.assertEqual(result["user"], self.user)
 
         # Check customer profile was not duplicated
         customer_count = Customer.objects.filter(user=self.user).count()
         self.assertEqual(customer_count, 1)
         self.user.refresh_from_db()
 
-        customer_profile = getattr(self.user, 'customer_profile', None)
+        customer_profile = getattr(self.user, "customer_profile", None)
         self.assertIsNotNone(customer_profile)
         if customer_profile is not None:
-            self.assertEqual(customer_profile.phone_number, '+254700999888')
+            self.assertEqual(customer_profile.phone_number, "+254700999888")
         else:
             self.fail("Customer profile should exist")
 
@@ -286,51 +276,43 @@ class OAuthPipelineTest(TestCase):
         details = {}
 
         result = create_customer_profile(
-            strategy=strategy,
-            details=details,
-            user=self.user
+            strategy=strategy, details=details, user=self.user
         )
 
-        self.assertEqual(result['user'], self.user)
+        self.assertEqual(result["user"], self.user)
         self.user.refresh_from_db()
-        self.assertTrue(hasattr(self.user, 'customer_profile'))
+        self.assertTrue(hasattr(self.user, "customer_profile"))
 
-        customer_profile = getattr(self.user, 'customer_profile', None)
+        customer_profile = getattr(self.user, "customer_profile", None)
         self.assertIsNotNone(customer_profile)
         if customer_profile is not None:
-            self.assertEqual(customer_profile.phone_number, '+254700000000')
+            self.assertEqual(customer_profile.phone_number, "+254700000000")
         else:
             self.fail("Customer profile should have been created")
 
     def test_create_customer_profile_no_user(self):
         """Test pipeline when no user is provided"""
         strategy = Mock()
-        details = {'phone_number': '+254700123456'}
+        details = {"phone_number": "+254700123456"}
 
-        result = create_customer_profile(
-            strategy=strategy,
-            details=details,
-            user=None
-        )
+        result = create_customer_profile(strategy=strategy, details=details, user=None)
 
-        self.assertEqual(result['user'], None)
+        self.assertEqual(result["user"], None)
 
-    @patch('customers.models.Customer.objects.get_or_create')
+    @patch("customers.models.Customer.objects.get_or_create")
     def test_create_customer_profile_database_error(self, mock_get_or_create):
         """Test handling database errors in pipeline"""
         # Mock database error
-        mock_get_or_create.side_effect = Exception('Database error')
+        mock_get_or_create.side_effect = Exception("Database error")
 
         strategy = Mock()
-        details = {'phone_number': '+254700123456'}
+        details = {"phone_number": "+254700123456"}
 
         result = create_customer_profile(
-            strategy=strategy,
-            details=details,
-            user=self.user
+            strategy=strategy, details=details, user=self.user
         )
 
-        self.assertEqual(result['user'], self.user)
+        self.assertEqual(result["user"], self.user)
 
 
 class AuthenticationIntegrationTest(APITestCase):
@@ -339,14 +321,13 @@ class AuthenticationIntegrationTest(APITestCase):
     def setUp(self):
         """Set up test data"""
         self.user = User.objects.create_user(
-            username='integrationuser',
-            email='integration@example.com',
-            password='testpass123'
+            username="integrationuser",
+            email="integration@example.com",
+            password="testpass123",
         )
 
         self.customer = Customer.objects.create(
-            user=self.user,
-            phone_number='+254700123456'
+            user=self.user, phone_number="+254700123456"
         )
 
     def test_api_authentication_with_jwt(self):
@@ -355,39 +336,42 @@ class AuthenticationIntegrationTest(APITestCase):
         token = generate_jwt_token(self.user)
 
         # Make authenticated request
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
         from django.urls import reverse
-        url = reverse('customer-me')
+
+        url = reverse("customer-me")
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
 
-        customer_id = getattr(self.customer, 'id', None)
+        customer_id = getattr(self.customer, "id", None)
         self.assertIsNotNone(customer_id)
         if customer_id is not None:
-            self.assertEqual(data['id'], customer_id)
+            self.assertEqual(data["id"], customer_id)
         else:
             self.fail("Customer should have an ID")
 
-        self.assertEqual(data['email'], self.user.email)
+        self.assertEqual(data["email"], self.user.email)
 
     def test_api_authentication_without_token(self):
         """Test API access without authentication"""
         from django.urls import reverse
-        url = reverse('customer-me')
+
+        url = reverse("customer-me")
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_api_authentication_with_invalid_token(self):
         """Test API access with invalid token"""
-        self.client.credentials(HTTP_AUTHORIZATION='Bearer invalid-token')
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer invalid-token")
 
         from django.urls import reverse
-        url = reverse('customer-me')
+
+        url = reverse("customer-me")
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -405,9 +389,9 @@ class AuthenticationPytestTest:
         assert len(token) > 0
 
         # Verify token content
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
-        assert payload['user_id'] == test_user.id
-        assert payload['email'] == test_user.email
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        assert payload["user_id"] == test_user.id
+        assert payload["email"] == test_user.email
 
     def test_jwt_authentication_flow(self, api_client, test_user, test_customer):
         """Test complete JWT authentication flow"""
@@ -415,15 +399,16 @@ class AuthenticationPytestTest:
         token = generate_jwt_token(test_user)
 
         # Authenticate client
-        api_client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
         # Make authenticated request
         from django.urls import reverse
-        url = reverse('customer-me')
+
+        url = reverse("customer-me")
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
 
         data = response.json()
-        assert data['id'] == test_customer.id
-        assert data['email'] == test_user.email
+        assert data["id"] == test_customer.id
+        assert data["email"] == test_user.email
