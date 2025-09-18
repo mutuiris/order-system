@@ -32,6 +32,9 @@ db.sqlite3-journal
 # Environment variables
 .env
 .venv
+.env.render
+.env.production
+.env.staging
 venv/
 ENV/
 env/
@@ -60,3 +63,15 @@ htmlcov/
 .pytest_cache/
 .tox/
 coverage.xml
+
+# Render deployment files
+render.yaml
+.do/
+
+# Production settings
+order_system/render_settings.py
+order_system/production_settings.py
+
+# Deployment logs
+deploy.log
+build.log
