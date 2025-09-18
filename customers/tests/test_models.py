@@ -3,10 +3,10 @@ Unit tests for Customer model
 Tests model creation, properties, methods, and business logic
 """
 import pytest
-from django.test import TestCase
 from django.contrib.auth.models import User
-from django.db import IntegrityError
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+from django.test import TestCase
 
 from customers.models import Customer
 

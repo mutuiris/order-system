@@ -2,16 +2,18 @@
 Tests for Order notification tasks
 Tests SMS and Email notifications with mockings
 """
-import pytest
-from unittest.mock import Mock, patch
-from django.test import TestCase
-from django.contrib.auth.models import User
 from decimal import Decimal
+from unittest.mock import Mock, patch
+
+import pytest
+from django.contrib.auth.models import User
+from django.test import TestCase
 
 from customers.models import Customer
-from products.models import Category, Product
 from orders.models import Order, OrderItem
-from orders.tasks import send_order_sms, send_admin_email, send_order_notifications
+from orders.tasks import (send_admin_email, send_order_notifications,
+                          send_order_sms)
+from products.models import Category, Product
 
 
 class OrderNotificationTaskTest(TestCase):

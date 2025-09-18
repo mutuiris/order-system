@@ -3,10 +3,11 @@ Integration tests for Customer API endpoints
 Tests authentication, CRUD operations, and business workflows
 """
 import json
-import pytest
 from unittest.mock import Mock, patch
-from django.test import TestCase
+
+import pytest
 from django.contrib.auth.models import User
+from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase

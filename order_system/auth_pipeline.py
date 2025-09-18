@@ -4,6 +4,7 @@ Handles user creation and customer profile creation from Google OAuth2 data
 """
 
 import logging
+
 from customers.models import Customer
 
 logger = logging.getLogger(__name__)

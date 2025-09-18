@@ -2,14 +2,15 @@
 Tests for Order models
 Tests order workflow and calculations
 """
-import pytest
 from decimal import Decimal
-from django.test import TestCase
+
+import pytest
 from django.contrib.auth.models import User
+from django.test import TestCase
 
 from customers.models import Customer
-from products.models import Category, Product
 from orders.models import Order, OrderItem
+from products.models import Category, Product
 
 
 class OrderModelTest(TestCase):

@@ -28,4 +28,5 @@ MIGRATION_MODULES = DisableMigrations()
 # Disable logging during tests
 LOGGING_CONFIG = None
 import logging
+
 logging.disable(logging.CRITICAL)

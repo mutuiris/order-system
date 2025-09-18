@@ -4,12 +4,12 @@ Handles SMS and email notifications when orders are placed
 """
 
 import logging
+from typing import TYPE_CHECKING, Any, Dict
+
 from celery import shared_task
 from django.conf import settings
 # from django.core.mail import send_mail
 from django.core import mail
-from typing import TYPE_CHECKING, Dict, Any
-
 
 if TYPE_CHECKING:
     from celery.result import AsyncResult
@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 def send_order_sms(self, order_id: int) -> Dict[str, Any]:
     """Send SMS notification to customer when order is placed."""
     try:
-        from .models import Order
         from order_system.services.sms_service import sms_service
+
+        from .models import Order
 
         order = Order.objects.select_related('customer__user').get(id=order_id)
 

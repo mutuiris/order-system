@@ -1,15 +1,15 @@
 """
 Test data factories for products app
 """
-from typing import List, Dict, Any, Tuple
 from decimal import Decimal
+from typing import Any, Dict, List, Tuple
 
 import factory
-from faker import Faker
-
-from factory.declarations import Sequence, LazyAttribute, SubFactory, LazyFunction
+from factory.declarations import (LazyAttribute, LazyFunction, Sequence,
+                                  SubFactory)
 from factory.faker import Faker as FactoryFaker
-from factory.helpers import post_generation, lazy_attribute
+from factory.helpers import lazy_attribute, post_generation
+from faker import Faker
 
 from products.models import Category, Product
 

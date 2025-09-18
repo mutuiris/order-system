@@ -1,21 +1,22 @@
 """
 Tests for authentication system including JWT and OAuth flows
 """
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional, Tuple
+from unittest.mock import Mock, patch
+
 import jwt
 import pytest
-from unittest.mock import Mock, patch
-from datetime import datetime, timedelta, timezone
-from django.test import TestCase
-from django.contrib.auth.models import User
 from django.conf import settings
+from django.contrib.auth.models import User
+from django.test import TestCase
 from rest_framework import status
-from rest_framework.test import APITestCase
 from rest_framework.exceptions import AuthenticationFailed
-from typing import Optional, Tuple, Any, Dict
+from rest_framework.test import APITestCase
 
 from customers.models import Customer
-from order_system.authentication import JWTAuthentication, generate_jwt_token
 from order_system.auth_pipeline import create_customer_profile
+from order_system.authentication import JWTAuthentication, generate_jwt_token
 
 
 class JWTAuthenticationTest(TestCase):

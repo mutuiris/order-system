@@ -4,6 +4,7 @@ Handles async SMS and email notifications
 """
 
 import os
+
 from celery import Celery
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'order_system.settings')

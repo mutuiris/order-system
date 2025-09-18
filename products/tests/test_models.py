@@ -2,11 +2,12 @@
 Unit tests for Product and Category models
 Tests hierarchy, business logic, and model relationships
 """
-import pytest
 from decimal import Decimal
-from django.test import TestCase
+
+import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.test import TestCase
 
 from products.models import Category, Product
 

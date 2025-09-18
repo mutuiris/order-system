@@ -1,14 +1,16 @@
 """
 Test data factories for orders app
 """
-import factory
-from decimal import Decimal
 import random
+from decimal import Decimal
+
+import factory
 from factory.faker import Faker
 
 from customers.tests.factories import CustomerFactory
-from products.tests.factories import ProductFactory
 from orders.models import Order, OrderItem
+from products.tests.factories import ProductFactory
+
 
 class OrderFactory(factory.django.DjangoModelFactory):
     """Factory for creating Order instances"""

@@ -1,11 +1,12 @@
-import jwt
 import logging
 from datetime import datetime, timedelta, timezone
+
+import jwt
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.utils.translation import gettext_lazy as _
 from rest_framework import authentication
 from rest_framework.exceptions import AuthenticationFailed
-from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 

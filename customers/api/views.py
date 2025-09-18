@@ -1,23 +1,21 @@
-from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.response import Response
-from django.shortcuts import redirect
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User
-from django.urls import reverse
-from social_django.utils import psa
-from social_core.backends.google import GoogleOAuth2
-from rest_framework.exceptions import NotAuthenticated
 import logging
 
-from ..models import Customer
-from .serializers import (
-    CustomerSerializer,
-    CustomerUpdateSerializer,
-    AuthTokenSerializer,
-    AuthCallbackSerializer
-)
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.shortcuts import redirect
+from django.urls import reverse
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.exceptions import NotAuthenticated
+from rest_framework.response import Response
+from social_core.backends.google import GoogleOAuth2
+from social_django.utils import psa
+
 from order_system.authentication import generate_jwt_token
+
+from ..models import Customer
+from .serializers import (AuthCallbackSerializer, AuthTokenSerializer,
+                          CustomerSerializer, CustomerUpdateSerializer)
 
 logger = logging.getLogger(__name__)
 

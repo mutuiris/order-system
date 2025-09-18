@@ -1,9 +1,10 @@
 """
 Shared pytest fixtures for order system tests
 """
-import pytest
 import os
+
 import django
+import pytest
 from django.conf import settings
 
 if not settings.configured:
@@ -16,8 +17,8 @@ from django.test import Client
 from rest_framework.test import APIClient
 
 from customers.models import Customer
-from products.models import Category, Product
 from orders.models import Order, OrderItem
+from products.models import Category, Product
 
 
 @pytest.fixture

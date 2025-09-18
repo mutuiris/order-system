@@ -1,7 +1,8 @@
-from django.db import models
-from django.core.validators import MinValueValidator
 from decimal import Decimal
 from typing import TYPE_CHECKING, List
+
+from django.core.validators import MinValueValidator
+from django.db import models
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -53,6 +54,7 @@ class Category(models.Model):
     def save(self, *args, **kwargs):
         """Auto calculate level based on parent hierarchy with preemptive uniqueness checks"""
         from django.db.utils import IntegrityError as DBIntegrityError
+
         # Capture previous level for existing records
         old_level = None
         if self.pk:

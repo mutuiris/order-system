@@ -3,10 +3,11 @@ Base test classes and utilities for order system tests
 """
 import json
 from decimal import Decimal
-from django.test import TestCase, TransactionTestCase
+
 from django.contrib.auth.models import User
-from rest_framework.test import APITestCase
+from django.test import TestCase, TransactionTestCase
 from rest_framework import status
+from rest_framework.test import APITestCase
 
 from customers.models import Customer
 from order_system.authentication import generate_jwt_token
@@ -139,7 +140,7 @@ class MockMixin:
     
     def mock_sms_service_success(self):
         """Mock SMS service to return success"""
-        from unittest.mock import patch, Mock
+        from unittest.mock import Mock, patch
         
         mock_service = Mock()
         mock_service.send_sms.return_value = {
@@ -152,7 +153,7 @@ class MockMixin:
     
     def mock_sms_service_failure(self):
         """Mock SMS service to return failure"""
-        from unittest.mock import patch, Mock
+        from unittest.mock import Mock, patch
         
         mock_service = Mock()
         mock_service.send_sms.return_value = {
@@ -172,7 +173,7 @@ class MockMixin:
 def create_test_categories():
     """Create a category hierarchy for testing"""
     from products.models import Category
-    
+
     # Root category
     electronics = Category.objects.create(
         name='Electronics',

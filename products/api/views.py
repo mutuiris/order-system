@@ -1,18 +1,16 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
-from django.db.models import Avg, Min, Max, Count
 from decimal import Decimal, InvalidOperation
 
+from django.db.models import Avg, Count, Max, Min
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
 from ..models import Category, Product
-from .serializers import (
-    CategorySerializer, CategoryTreeSerializer,
-    ProductListSerializer, ProductDetailSerializer,
-    CategoryAveragePriceSerializer
-)
+from .serializers import (CategoryAveragePriceSerializer, CategorySerializer,
+                          CategoryTreeSerializer, ProductDetailSerializer,
+                          ProductListSerializer)
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):

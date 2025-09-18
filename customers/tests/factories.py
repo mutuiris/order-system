@@ -3,10 +3,11 @@ Test data factories for customers
 """
 import factory
 import factory.django
-from factory.declarations import Sequence, LazyAttribute, SubFactory
-from factory.faker import Faker
-from factory.helpers import post_generation, lazy_attribute
 from django.contrib.auth.models import User
+from factory.declarations import LazyAttribute, Sequence, SubFactory
+from factory.faker import Faker
+from factory.helpers import lazy_attribute, post_generation
+
 from customers.models import Customer
 
 

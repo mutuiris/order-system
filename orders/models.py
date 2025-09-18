@@ -1,9 +1,10 @@
 import logging
-from django.db import models
-from django.core.validators import MinValueValidator
 from decimal import Decimal
-import logging
 from typing import TYPE_CHECKING
+
+from django.core.validators import MinValueValidator
+from django.db import models
+
 from customers.models import Customer
 from products.models import Product
 

@@ -1,15 +1,16 @@
 """
 Tests for Orders API
 """
-import pytest
 from decimal import Decimal
-from django.urls import reverse
+
+import pytest
 from django.contrib.auth.models import User
+from django.urls import reverse
 from rest_framework import status
 
 from customers.models import Customer
-from products.models import Category, Product
 from orders.models import Order, OrderItem
+from products.models import Category, Product
 from tests.base import BaseAPITestCase
 
 

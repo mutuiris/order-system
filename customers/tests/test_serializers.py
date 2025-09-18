@@ -3,18 +3,15 @@ Unit tests for Customer serializers
 Tests serialization, deserialization, validation, and custom methods
 """
 import pytest
-from django.test import TestCase
 from django.contrib.auth.models import User
+from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 
+from customers.api.serializers import (AuthCallbackSerializer,
+                                       AuthTokenSerializer, CustomerSerializer,
+                                       CustomerUpdateSerializer,
+                                       UserSerializer)
 from customers.models import Customer
-from customers.api.serializers import (
-    UserSerializer,
-    CustomerSerializer,
-    CustomerUpdateSerializer,
-    AuthTokenSerializer,
-    AuthCallbackSerializer
-)
 
 
 class UserSerializerTest(TestCase):

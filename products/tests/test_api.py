@@ -1,9 +1,10 @@
 """
 Integration tests for Products API endpoints
 """
-from typing import Any
-import pytest
 from decimal import Decimal
+from typing import Any
+
+import pytest
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase

@@ -1,20 +1,21 @@
 """
 Integration tests for order system
 """
-import pytest
 from decimal import Decimal
 from unittest.mock import patch
-from django.test import TestCase, TransactionTestCase
+
+import pytest
 from django.contrib.auth.models import User
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from rest_framework import status
 
 from customers.models import Customer
-from products.models import Category, Product
-from orders.models import Order, OrderItem
-from tests.base import BaseAPITestCase
-from products.tests.factories import ProductFactory
 from customers.tests.factories import create_user_with_customer
+from orders.models import Order, OrderItem
+from products.models import Category, Product
+from products.tests.factories import ProductFactory
+from tests.base import BaseAPITestCase
 
 
 class CompleteOrderWorkflowTest(BaseAPITestCase):
@@ -297,8 +298,8 @@ class NotificationIntegrationTest(TransactionTestCase):
         OrderItem.objects.create(order=order, product=self.product, quantity=2)
         order.calculate_totals()
 
-        from orders.tasks import send_order_sms, send_admin_email
-        
+        from orders.tasks import send_admin_email, send_order_sms
+
         # Execute notification tasks
         sms_result = send_order_sms(order.pk)
         email_result = send_admin_email(order.pk)

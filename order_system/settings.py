@@ -6,8 +6,9 @@ Modified to follow DRY and KISS principles with production-ready defaults.
 """
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 from typing import TYPE_CHECKING
+
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()

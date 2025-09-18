@@ -1,16 +1,13 @@
-from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
 from django.db import transaction
 from django.db.models import Sum
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from ..models import Order, OrderItem
-from .serializers import (
-    OrderListSerializer, OrderDetailSerializer,
-    OrderCreateSerializer, OrderUpdateSerializer
-)
+from .serializers import (OrderCreateSerializer, OrderDetailSerializer,
+                          OrderListSerializer, OrderUpdateSerializer)
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -275,9 +272,10 @@ class CustomerOrderStatsView(viewsets.GenericViewSet):
             return Response({'error': 'Customer profile required'},
                             status=status.HTTP_400_BAD_REQUEST)
 
+        from datetime import datetime, timedelta
+
         from django.db.models import Sum
         from django.utils import timezone
-        from datetime import datetime, timedelta
 
         twelve_months_ago = timezone.now() - timedelta(days=365)
         orders = Order.objects.filter(

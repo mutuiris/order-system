@@ -3,16 +3,15 @@ Unit tests for products app serializers
 Test serialization, validation and custom methods for category and product serializers
 """
 from decimal import Decimal
+
 import pytest
 
+from products.api.serializers import (CategoryAveragePriceSerializer,
+                                      CategorySerializer,
+                                      CategoryTreeSerializer,
+                                      ProductDetailSerializer,
+                                      ProductListSerializer)
 from products.models import Category, Product
-from products.api.serializers import (
-    CategorySerializer,
-    CategoryTreeSerializer,
-    ProductListSerializer,
-    ProductDetailSerializer,
-    CategoryAveragePriceSerializer,
-)
 
 
 @pytest.mark.django_db

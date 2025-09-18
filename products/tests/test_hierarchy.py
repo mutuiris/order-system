@@ -2,13 +2,15 @@
 Specialized tests for Category hierarchy functionality
 Tests complex hierarchy operations, edge cases, and performance
 """
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 import pytest
-from django.test import TestCase, TransactionTestCase
 from django.db import transaction
+from django.test import TestCase, TransactionTestCase
 
 from products.models import Category, Product
-from products.tests.factories import create_category_hierarchy, CategoryHierarchyBuilder
+from products.tests.factories import (CategoryHierarchyBuilder,
+                                      create_category_hierarchy)
 
 
 class CategoryHierarchyTest(TestCase):

@@ -4,8 +4,9 @@ Handles SMS sending via Africa's Talking API
 """
 
 import logging
+from typing import Any, Dict, List, Optional
+
 from django.conf import settings
-from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 

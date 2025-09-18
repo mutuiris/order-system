@@ -1,7 +1,8 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import CustomerViewSet
+
 from . import views
+from .views import CustomerViewSet
 
 # Create router for viewsets
 router = DefaultRouter()
