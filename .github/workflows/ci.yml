@@ -107,8 +107,12 @@ jobs:
       - name: Install linting dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 black isort mypy django-stubs
+          pip install black isort
 
       - name: Run Black (code formatting)
         run: |
           black --check --diff .
+
+      - name: Run isort (import sorting)
+        run: |
+          isort --check-only --diff .
