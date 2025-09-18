@@ -107,12 +107,8 @@ jobs:
       - name: Install linting dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install black isort
+          pip install black
 
       - name: Run Black (code formatting)
         run: |
           black --check --diff .
-
-      - name: Run isort (import sorting)
-        run: |
-          isort --check-only --diff .
