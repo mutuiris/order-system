@@ -28,9 +28,10 @@ services:
   web:
     build: .
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "./wait-for-db.sh sh -c 'python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn --bind 0.0.0.0:8000 order_system.wsgi:application"
+             gunicorn --bind 0.0.0.0:8000 order_system.wsgi:application'"
+
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
@@ -57,7 +58,7 @@ services:
 
   celery:
     build: .
-    command: celery -A order_system worker --loglevel=info
+    command: sh -c "./wait-for-db.sh celery -A order_system worker --loglevel=info"
     volumes:
       - .:/app
     env_file:
@@ -80,7 +81,7 @@ services:
 
   celery-beat:
     build: .
-    command: celery -A order_system beat --loglevel=info
+    command: sh -c "./wait-for-db.sh celery -A order_system beat --loglevel=info"
     volumes:
       - .:/app
     env_file:
