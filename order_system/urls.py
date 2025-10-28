@@ -25,12 +25,11 @@ def api_root(request):
     return JsonResponse(
         {
             "status": "running",
-            "message": "Order Processing System API",
+            "message": "Order System API",
             "version": "v1",
             "endpoints": {
                 "api": "/api/v1/",
                 "admin": "/admin/",
-                "auth": "/auth/",
                 "health": "/health/",
             },
             "documentation": "https://github.com/mutuiris/order-system",
